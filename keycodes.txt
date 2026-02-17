@@ -1,0 +1,33 @@
+3 : Voltar para a tela inicial
+4 : Voltar para a tela anterior ou sair de aplicativos
+5 : Iniciar uma chamada telefônica
+6 : Encerrar uma chamada telefônica
+7-16 : Teclas numéricas de 0 a 9
+17 : Tecla *
+18 : Tecla #
+55-56: Vírgula e ponto
+19-22: UP, DOWN, LEFT, RIGHT
+29-54 - Letras de A a Z
+23: Selecionar elemento no centro do D-pad
+24-25: Aumentar, diminuir o volume
+26: Botão de energia (ligar/desligar)
+27: Botão da câmera
+61: TAB
+62: Espaço
+63: Altera layout do teclado
+66: ENTER
+67: Backspace
+64: Abre navegador
+84: Abre o google
+85: Pausa mídia
+87: Passa pra próxima mídia
+88: Retorna a mídia anterior
+111: Escape
+112: Delete a frente
+118: Inicia o assistente virtual se existir
+122: HOME
+123: END
+164: Mutar/Retomar volume
+277: Cortar
+278: Copiar
+279: Colar
