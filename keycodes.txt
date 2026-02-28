@@ -1,3 +1,37 @@
+3: Return to the home screen
+4: Return to the previous screen or exit applications
+5: Start a phone call
+6: End a phone call
+7-16: Number keys from 0 to 9
+17: * key
+18: # key
+55-56: Comma and period
+19-22: UP, DOWN, LEFT, RIGHT
+29-54 - Letters from A to Z
+23: Select item in the center of the D-pad
+24-25: Increase, decrease volume
+26: Power button (on/off)
+27: Camera button
+61: TAB
+62: Space
+63: Change keyboard layout
+66: ENTER
+67: Backspace
+64: Open browser
+84: Open Google
+85: Pause media
+87: Skip to next media
+88: Return to previous media
+111: Escape
+112: Delete ahead
+118: Launch virtual assistant if available
+122: HOME
+123: END
+164: Mute/Resume volume
+277: Cut
+278: Copy
+279: Paste
+
 3 : Voltar para a tela inicial
 4 : Voltar para a tela anterior ou sair de aplicativos
 5 : Iniciar uma chamada telefônica
