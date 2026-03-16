@@ -127,62 +127,32 @@ class Maintenance:
     @staticmethod
     def exec_adb(command):
         return Maintenance.exec_cmd(f"adb {command}")
-
+        
     @staticmethod
     def check_if_linux():
-        sys = platform.system()
-        if sys == "Linux":
-            try:
-                p = Path("/etc/os-release").read_text()
-                mt = re.search(r'^ID_LIKE="?([^"\n]+)"?', p, re.MULTILINE)
-                if mt:
-                    return ("Linux", mt.group(1).strip())
-            except Exception:
-                pass
-            return ("Linux", platform.node())
-        return ("Not Linux", None)
+        if platform.system() == "Linux":
+            return True
+        return False
 
     @staticmethod
     def check_adb():
         check = Maintenance.check_if_linux()
-        if check[0] != "Linux":
-            return False
+        if not check:
+           return False
 
-        code, _, _ = Maintenance.exec_cmd("which adb")
+        code, _2, _1 = Maintenance.exec_cmd("which adb")
         if code == 0:
-            return True
-
-        distro = check[1].lower() if check[1] else ""
-
-        if "fedora" in distro:
-            code, _, _ = Maintenance.exec_cmd(
-                "sudo dnf install -y android-tools",
-                use_sh=True
-            )
-            return code == 0
-            
-        if "archlinux" in distro:
-            code, _, _ = Maintenance.exec_cmd(
-                "sudo pacman -Syu --noconfirm android-tools",
-                use_sh=True
-            )
-            return code == 0
-
-        if "debian" in distro or "ubuntu" in distro:
-            code, _, _ = Maintenance.exec_cmd(
-                "sudo apt update && sudo apt install -y adb",
-                use_sh=True
-            )
-            return code == 0
+           return True
 
         return False
+
 
     @staticmethod
     def check_device():
         code, _, stdout = Maintenance.exec_cmd("adb devices")
         if code != 0:
             return None
-
+        
         lines = stdout.splitlines()
         for line in lines[1:]:
             if "\tdevice" in line:
@@ -262,14 +232,40 @@ class Maintenance:
             return True
         except ValueError:
             return False
-
+    
+    @staticmethod
+    def connect_device():
+        mt = Maintenance
+        pair_port = input("Pair port: ")
+        pair_code = input("Pairing code: ")
+        connect_port = input("Connect port: ")
+        if mt.check_int(pair_port):
+            if mt.check_int(pair_code):
+                c, st, sd = Maintenance.exec_cmd(f"adb pair {device}:{pair_port} {pair_code}")
+                if c == 0:
+                    if "Successfully paired to" in sd:
+                        if mt.check_int(connect_port):
+                            c1, st1, sd1 = Maintenance.exec_cmd(f"adb connect {device}:{connect_port}")
+                            if c1 == 0 and "connected to" in sd1:
+                                return "connected"
+                            else:
+                                return "couldnt connect"
+                        else:
+                            return "invalid port"
+                else:
+                    return "couldnt pair"
+            else:
+                return "invalid pair code"
+        else:
+            return "invalid pair port"
+                            
     @staticmethod
     def check_key(key):
         return key.isdigit() and int(key) < 286
 
     @staticmethod
     def check_text(text):
-        return isinstance(text, str) and len(text) >= 10
+        return isinstance(text, str) and len(text) > 0
 
     @staticmethod
     def clear():
