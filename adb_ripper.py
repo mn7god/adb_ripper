@@ -9,13 +9,21 @@ from pathlib import Path
 from printit import Color as cl
 from printit import PrintIt as pt
 from maintent_utils import Maintenance as mt
+from concurrent.futures import ThreadPoolExecutor as tpe
 
 class AdbRipper(cmd.Cmd):
-	
-	device = mt.check_device()
-	intro = pt.banner()
+
 	prompt = f"{cl.WHITE_LINE}adbr{cl.RESET}> "
 	
+	def __init__(self, no_intro=False):
+		super().__init__()
+		self.no_intro = no_intro
+		self.device = mt.check_device()
+		if self.no_intro:
+			self.intro = ""
+		else:
+			self.intro = pt.banner()
+		
 	def do_key(self, key):
 		'''Send a key event to the target(NEED TO BE INTEGER).
 		usage: key <INT>
@@ -487,9 +495,27 @@ class AdbRipper(cmd.Cmd):
 		 dump_sd doc,docx,pdf,xlsx - Dump documents
 		 dump_sd png,pdf - Only .png photos and .pdf files.
 		'''
+		def process_file(item):
+			try:
+				p = Path(item).resolve().suffix
+				_type = mt.get_file_type(p)
+				full_path = f"adb_dumps/{self.device}/{_type}/"
+				Path(full_path).mkdir(parents=True, exist_ok=True)
+				pt.proc(f"Dumping '{item}'.")
+				c1, st1, sd1 = mt.exec_cmd(f"adb pull \"{item}\" {full_path}")
+				if c1 == 0:
+					pt.success(f"File '{item}' was dumped to '{full_path}'.")
+				else:
+					pt.error(f"Failed to dump '{item}': {st1}.")
+			except KeyboardInterrupt:
+				pt.error(f"Dumping process ended, visit 'adb_dumps/{self.device}' to find your dumps.")
+			except Exception as e:
+				pt.error(f"Error: {e}.")
 		Path(f"adb_dumps/{self.device}").mkdir(parents=True, exist_ok=True)
+		
 		if not args:
 			print(f"Please provide args, or use {cl.RED}help dump_sd{cl.RESET}."); return
+		
 		cmd = args.split()
 		cmd_l = len(cmd)
 		if "," in cmd[0] and cmd_l == 1:
@@ -497,38 +523,20 @@ class AdbRipper(cmd.Cmd):
 			_format = mt.formater(items)
 			c, st, sd = mt.exec_cmd(f"adb shell find /sdcard/ | grep -iE \"({_format})\"", use_sh=True)
 			if c == 0:
-				try:
-					for item in sd.splitlines():
-						p = Path(item).resolve().suffix
-						_type = mt.get_file_type(p)
-						full_path = f"adb_dumps/{self.device}/{_type}/"
-						Path(f"adb_dumps/{self.device}/{_type}").mkdir(parents=True, exist_ok=True)
-						pt.proc(f"Dumping '{item}'.")
-						c1, st1, sd1 = mt.exec_cmd(f"adb pull {item} {full_path}")
-						if c1 == 0:
-							pt.success(f"File '{item}' was dumped to '{full_path}'.")
-				except KeyboardInterrupt:
-					pt.success(f"Dumping process ended, visit 'adb_dumps/{self.device}' to find your dumps.")
-				except Exception as e:
-					pt.error(str(e))
+				l = sd.splitlines()
+				with tpe(max_workers=3) as exe:
+					exe.map(process_file, l)
+			else:
+				pt.error(f"Failed to execute adb: {st}.")
 		elif "," not in args and cmd_l == 1:	
 			i = "."+cmd[0] if "." not in cmd[0] else cmd[0]
 			c, st, sd = mt.exec_cmd(f"adb shell find /sdcard/ | grep -iE \"(\\{i})\"", use_sh=True)
 			if c == 0:
-				try:
-					for item in sd.splitlines():
-						p = Path(item).resolve().suffix
-						_type = mt.get_file_type(p)
-						full_path = f"adb_dumps/{self.device}/{_type}/"
-						Path(full_path).mkdir(parents=True, exist_ok=True)
-						pt.proc(f"Dumping '{item}'.")
-						c1, st1, sd1 = mt.exec_cmd(f"adb pull {item} {full_path}")
-						if c1 == 0:
-							pt.success(f"File '{item}' was dumped to '{full_path}'.")
-				except KeyboardInterrupt:
-					pt.success(f"Dumping process ended, visit 'adb_dumps/{self.device}' to find your dumps.")
-				except Exception as e:
-					pt.error(str(e))
+				l = sd.splitlines()
+				with tpe(max_workers=3) as exe:
+					exe.map(process_file, l)
+			else:
+				print(f"Failed to find files.")
 		elif cmd_l < 1:
 			print(f"Too few args, use {cl.RED}help dump_sd{cl.RESET}.")
 		elif cmd_l > 1:
@@ -536,19 +544,8 @@ class AdbRipper(cmd.Cmd):
 				
 	def do_dump_wpp(self, args):
 		'''Try dump high priority whatsapp data.'''
-		if mt.check_wpp_path():
-			base_p = Path(f"adb_dumps/{self.device}/WhatsApp")
-			base_p.mkdir(parents=True, exist_ok=True)
-			wpp_dirs = [
-				"WhatsApp Audio",
-				"WhatsApp Documents",
-				"WhatsApp Images",
-				"WhatsApp Profile Photos",
-				"WhatsApp Video",
-				"WhatsApp Video Notes",
-				"WhatsApp Voice Notes",
-			]
-			for path in wpp_dirs:
+		
+		def dump_paths(path):
 				pt.proc(f"Trying dump '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/'. ")
 				c, st, sd = mt.exec_adb(
 					f"pull \"/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/\" {str(base_p)}"
@@ -562,27 +559,45 @@ class AdbRipper(cmd.Cmd):
 						pt.success(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' dumped.")
 					else:
 						pt.fail(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' cant be dumped.")
-			files = [p for p in base_p.rglob("*") if p.is_file()]
-			for src_path in files:
-				_format = mt.get_file_type(src_path.suffix)
-				dest = base_p / f"{_format}"
-				dest.mkdir(parents=True, exist_ok=True)
-				dest_file = dest / src_path.name
-				try:
-					if dest_file.exists():
-						if mt.file_hash(src_path) == mt.file_hash(dest_file):
-							continue
-						else:
-							counter = 1
-							new_dest = dest_file
-							while new_dest.exists():
-								new_dest = dest / f"{src_path.stem}_{counter}{src_path.suffix}"
-								counter += 1
-							shutil.move(str(src_path), str(new_dest))
+		
+		def format_files(src_path):
+			_format = mt.get_file_type(src_path.suffix)
+			dest = base_p / f"{_format}"
+			dest.mkdir(parents=True, exist_ok=True)
+			dest_file = dest / src_path.name
+			try:
+				if dest_file.exists():
+					if mt.file_hash(src_path) == mt.file_hash(dest_file):
+						return
 					else:
-						shutil.move(str(src_path), str(dest_file))
-				except Exception as e:
-					pt.fail(str(e))
+						counter = 1
+						new_dest = dest_file
+						while new_dest.exists():
+							new_dest = dest / f"{src_path.stem}_{counter}{src_path.suffix}"
+							counter += 1
+						shutil.move(str(src_path), str(new_dest))
+				else:
+					shutil.move(str(src_path), str(dest_file))
+			except Exception as e:
+				pt.fail(str(e))
+		
+		if mt.check_wpp_path():
+			base_p = Path(f"adb_dumps/{self.device}/WhatsApp")
+			base_p.mkdir(parents=True, exist_ok=True)
+			wpp_dirs = [
+				"WhatsApp Audio",
+				"WhatsApp Documents",
+				"WhatsApp Images",
+				"WhatsApp Profile Photos",
+				"WhatsApp Video",
+				"WhatsApp Video Notes",
+				"WhatsApp Voice Notes",
+			]
+			for path in wpp_dirs:
+				dump_paths(path)
+			files = [p for p in base_p.rglob("*") if p.is_file()]
+			with tpe(max_workers=6) as exe:
+				exe.map(format_files, files)
 			for w_path in wpp_dirs:
 				wpp_path = base_p / w_path
 				if wpp_path.exists():
@@ -775,17 +790,31 @@ class AdbRipper(cmd.Cmd):
 		'Clear the console display.'
 		mt.clear()
 		
-if __name__ == "__main__":
+parser = argparse.ArgumentParser(
+	description="ADB Ripper, A useful program focused in exploit adb functions."
+)
+parser.add_argument("-i", action="store_true", help="Activate interactive connection.")
+parser.add_argument("-q", action="store_true", help="Run without banner")
+args = parser.parse_args()
+
+def run(i: bool, q: bool):
 	d = mt.check_device()
-	if mt.check_if_linux():
-		if mt.check_adb():
-			if d:
-				mt.check_paths(d)
-				AdbRipper().cmdloop()
-			else:
-				print("No device conected.")
-		else:
-			print("Setuping ADB...")
+	
+	if i and not d:
+		c = mt.connect_device()
+		if "connected" not in c:
+			print("Can't connect to device.")
+		d = mt.check_device()
+	
+	if d:
+		mt.check_paths(d)
+		AdbRipper(no_intro=q).cmdloop()
 	else:
-		print("ADB Ripper just runs in linux.")
+		print("No device connected.")
 			
+if __name__ == "__main__":
+	if mt.check_adb():
+		run(args.i, args.q)
+	else:
+		print("Please install android-tools.")
+		
