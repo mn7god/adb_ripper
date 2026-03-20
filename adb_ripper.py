@@ -521,100 +521,69 @@ class AdbRipper(cmd.Cmd):
 		print(f"Incorrect usage, use {cl.RED}help dump_sd{cl.RESET}.")
 				
 	def do_dump_wpp(self, args):
-	    '''Try dump high priority whatsapp data.'''
-	
-	    BASE_REMOTE = "/sdcard/Android/media/com.whatsapp/WhatsApp/Media"
-	
-	    def list_files(remote_path):
-	        c, st, sd = mt.exec_cmd([
-	            "adb", "shell", "find", remote_path, "-type", "f"
-	        ])
-	        if c != 0 or not sd:
-	            pt.fail(f"Failed to list files in '{remote_path}'")
-	            return []
-	        return sd.splitlines()
-	
-	    def pull_file(remote_file):
-	        try:
-	            pt.proc(f"Pulling '{remote_file}'")
-	
-	            c, st, sd = mt.exec_cmd([
-	                "adb", "pull", remote_file, str(base_p)
-	            ])
-	
-	            if c == 0:
-	                pt.success(f"Pulled '{remote_file}'")
-	            else:
-	                pt.fail(f"Failed '{remote_file}': {st}")
-	
-	        except Exception as e:
-	            pt.error(str(e))
-	
-	    def format_files(src_path):
-	        _format = mt.get_file_type(src_path.suffix)
-	        dest = base_p / f"{_format}"
-	        dest.mkdir(parents=True, exist_ok=True)
-	
-	        dest_file = dest / src_path.name
-	
-	        try:
-	            if dest_file.exists():
-	                if mt.file_hash(src_path) == mt.file_hash(dest_file):
-	                    return
-	                else:
-	                    counter = 1
-	                    new_dest = dest_file
-	                    while new_dest.exists():
-	                        new_dest = dest / f"{src_path.stem}_{counter}{src_path.suffix}"
-	                        counter += 1
-	                    shutil.move(str(src_path), str(new_dest))
-	            else:
-	                shutil.move(str(src_path), str(dest_file))
-	        except Exception as e:
-	            pt.fail(str(e))
-	
-	    if mt.check_wpp_path():
-	        base_p = Path(f"adb_dumps/{self.device}/WhatsApp")
-	        base_p.mkdir(parents=True, exist_ok=True)
-	
-	        wpp_dirs = [
-	            "WhatsApp Audio",
-	            "WhatsApp Documents",
-	            "WhatsApp Images",
-	            "WhatsApp Profile Photos",
-	            "WhatsApp Video",
-	            "WhatsApp Video Notes",
-	            "WhatsApp Voice Notes",
-	        ]
-	
-	        all_files = []
-	
-	        for path in wpp_dirs:
-	            remote = f"{BASE_REMOTE}/{path}"
-	            pt.proc(f"Scanning '{remote}'")
-	            files = list_files(remote)
-	            all_files.extend(files)
-	
-	        if not all_files:
-	            pt.fail("No files found.")
-	            return
-	
-	        with tpe(max_workers=3) as exe:
-	            exe.map(pull_file, all_files)
-	
-	        files = [p for p in base_p.rglob("*") if p.is_file()]
-	        with tpe(max_workers=6) as exe:
-	            exe.map(format_files, files)
-
-	        for w_path in wpp_dirs:
-	            wpp_path = base_p / w_path
-	            if wpp_path.exists():
-	                shutil.rmtree(wpp_path)
-	
-	    else:
-	        pt.fail("Cant access whatsapp folder.")
-	
+		'''Try dump high priority whatsapp data.'''
 		
+		def dump_paths(path):
+				pt.proc(f"Trying dump '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/'. ")
+				c, st, sd = mt.exec_cmd(
+					["adb", "pull", f"/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/", str(base_p)]
+				)
+				if c == 0:
+					pt.success(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' dumped.")
+				else:
+					pt.fail(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' couldnt be dumped, attempting again...")	
+					c1, st1, sd1 = mt.exec_cmd(
+						["adb", "pull", f"/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/", str(base_p)]
+					)
+					if c1 == 0:
+						pt.success(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' dumped.")
+					else:
+						pt.fail(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' cant be dumped.")
+		
+		def format_files(src_path):
+			_format = mt.get_file_type(src_path.suffix)
+			dest = base_p / f"{_format}"
+			dest.mkdir(parents=True, exist_ok=True)
+			dest_file = dest / src_path.name
+			try:
+				if dest_file.exists():
+					if mt.file_hash(src_path) == mt.file_hash(dest_file):
+						return
+					else:
+						counter = 1
+						new_dest = dest_file
+						while new_dest.exists():
+							new_dest = dest / f"{src_path.stem}_{counter}{src_path.suffix}"
+							counter += 1
+						shutil.move(str(src_path), str(new_dest))
+				else:
+					shutil.move(str(src_path), str(dest_file))
+			except Exception as e:
+				pt.fail(str(e))
+		
+		if mt.check_wpp_path():
+			base_p = Path(f"adb_dumps/{self.device}/WhatsApp")
+			base_p.mkdir(parents=True, exist_ok=True)
+			wpp_dirs = [
+				"WhatsApp Audio",
+				"WhatsApp Documents",
+				"WhatsApp Images",
+				"WhatsApp Profile Photos",
+				"WhatsApp Video",
+				"WhatsApp Video Notes",
+				"WhatsApp Voice Notes",
+			]
+			for path in wpp_dirs:
+				dump_paths(path)
+			files = [p for p in base_p.rglob("*") if p.is_file()]
+			with tpe(max_workers=6) as exe:
+				exe.map(format_files, files)
+			for w_path in wpp_dirs:
+				wpp_path = base_p / w_path
+				if wpp_path.exists():
+					shutil.rmtree(wpp_path)
+		else:
+			pt.fail("Cant access whatsapp folder.")
 							
 	def do_check_connection(self, args):
 		'''Check if theres a device connected.'''
