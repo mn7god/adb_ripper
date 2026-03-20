@@ -1,4 +1,6 @@
+import re
 import cmd
+import shlex
 import shutil
 import random
 import argparse
@@ -29,41 +31,42 @@ class AdbRipper(cmd.Cmd):
 		usage: key <INT>
 		Ex: key 26
 		'''
-		cmd = key.split()
+		cmd = shlex.split(key)
 		cmd_l = len(cmd)
 		if key and len(cmd) == 1:
 			if mt.check_int(key):
-				c, st, sd = mt.exec_cmd(f"adb shell input keyevent {key}")
+				c, st, sd = mt.exec_cmd(["adb", "shell", "input", "keyevent", key])
 				if c == 0:
 					pt.success(f"Key event {cl.GREEN}{key}{cl.RESET} was sent.")
 				else:
 					pt.fail(f"Key event {cl.RED}{key}{cl.RESET} wasnt sent.")
 			else:
 				print("Please provide a valid key code.")
-		elif cmd_l < 1:
-			print(f"Too few args, use {cl.RED}help key{cl.RESET}.")
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help key{cl.RESET}.")
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help key{cl.RESET}.")
 			
 	def do_multikey(self, keys):
 		'''Send more than 1 key event to the target(NEED TO BE INTEGER).
 		usage: key <INT>
 		Ex: key 26 56 64 84
 		'''
-		items = keys.split(" ")
+		items = shlex.split(keys)
 		cmd_l = len(items)
+		
 		if len(items) >= 1:
 			for key in items:
-				if key and mt.check_int(key):
-					c, st, sd = mt.exec_cmd(f"adb shell input keyevent {key}")
+				if mt.check_int(key):
+					c, st, sd = mt.exec_cmd(["adb","shell","input","keyevent",key])
 					if c == 0:
 						pt.success(f"Key event {cl.GREEN}{key}{cl.RESET} was sent.")
 					else:
 						pt.fail(f"Key event {cl.RED}{key}{cl.RESET} wasnt sent.")
 				else:
-					print("Please provide a valid key code.")
-		else:
-			print(f"Too few args, use {cl.RED}help multikey{cl.RESET}.")
+					pt.fail(f"Invalid key event number: {cl.RED}{key}{cl.RESET}")
+			return
+				
+		print(f"Incorrect usage, use {cl.RED}help multikey{cl.RESET}.")
 				
 	def do_search(self, args):
 		'''Search files in the target device.
@@ -75,30 +78,33 @@ class AdbRipper(cmd.Cmd):
 		 search ex .zip /sdcard/
 		 search file app /sdcard/
 		'''
-		cmd = args.split(" ")
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if len(cmd) == 3:
+			
 			if cmd[0] == "ex":
-				if cmd[1][0] == "." and cmd[2][0] == "/":
-					c, st, sd = mt.exec_cmd(f"adb shell find {cmd[2]} | grep {cmd[1]}", use_sh=True)
+				if mt.check_regex(r"\.[a-z]{3,4}$", cmd[1]) and cmd[2].startswith("/sdcard"):
+					c, st, sd = mt.exec_cmd(["adb", "shell", "find", cmd[2]])
 					if c == 0:
+						f = [item for item in sd.splitlines() if item.endswith(cmd[1])]
 						pt.success("")
-						print(sd)
+						for i in f:
+							print(i)
 					else:
 						pt.fail(st)
 			elif cmd[0] == "file":
-				if cmd[2][0] == "/":
-					c2, st2, sd2(f"adb shell find {cmd[2]} | grep {cmd[1]}", use_sh=True)
+				if cmd[2].startswith("/sdcard"):
+					c2, st2, sd2 = mt.exec_cmd(["adb", "shell", "find", cmd[2]])
 					if c2 == 0:
+						f = [item for item in sd2.splitlines() if cmd[1] in item]
 						pt.success("")
-						print(sd2)
+						print(f)
 					else:
 						pt.fail(st2)
-		elif cmd_l < 3:
-			print(f"Too few args, use {cl.RED}help search{cl.RESET}.")
-		elif cmd_l > 3:
-			print(f"Too many args, use {cl.RED}help search{cl.RESET}.")
-		return
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help search{cl.RESET}.")
 		
 	def do_ripper(self, args):
 		'''ADB Payload executor.
@@ -110,74 +116,56 @@ class AdbRipper(cmd.Cmd):
 		 ripper list
 		'''
 		self.prompt = f"{cl.WHITE_LINE}adbr{cl.RESET}({cl.RED}ripper{cl.RESET})> "
-		cmd = args.split()
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if len(cmd) == 3:
+			
 			if cmd[0] == "run" and mt.check_int(cmd[2]):
-				if ".adbp" in cmd[1]:
-					data = mt.f_reader(Path(f"adb_payloads/{cmd[1]}"))
-					if len(data) == 2 and data[0] == None:
-						pt.fail(data[1])
-					else:
-						for item in data[0].splitlines():
-							if mt.check_key(item):
-								c, st, sd = mt.exec_cmd(f"adb shell input keyevent {item}")
+				
+				
+				if not cmd[1].endswith(".adbp"):
+					cmd[1] += ".adbp"
+					
+				data = mt.f_reader(Path(f"adb_payloads/{cmd[1]}"))
+				delay = max(1, int(cmd[2]))
+									
+				if len(data) == 2 and data[0] == None:
+					pt.fail(data[1])
+				else:	
+					for line in data[0].splitlines():
+						
+						if mt.check_key(line):
+							c, st, sd = mt.exec_cmd(["adb", "shell", "input", "keyevent", line])
+							if c == 0:
+								pt.success(f"Keyevent '{line}' was sent.")
+							else:
+								pt.fail(f"Keyevent '{line}' wasnt sent.")
+								
+						elif mt.check_text(line):
+							if line == "## File created by adb_ripper":
+								print("Comment passed.")
+							else:
+								c, st, sd = mt.exec_cmd(["adb", "shell", "input", "text", line.replace(' ', '_')])
 								if c == 0:
-									pt.success(f"Keyevent {item} was sent.")
+									pt.success(f"Text '{line}' was sent.")
 								else:
-									pt.fail(f"Keyevent {item} wasnt sent.")
-							elif mt.check_text(item):
-								if item == "## File created by adb_ripper":
-									print("Comment passed.")
-								else:
-									c, st, sd = mt.exec_cmd(f"adb shell input text {item.replace(" ", "_")}")
-									if c == 0:
-										pt.success(f"Text '{item}' was sent.")
-									else:
-										pt.fail(f"Text '{item}' wasnt sent.")
-							sleep(int(cmd[2]))
-				elif "." not in cmd[1]:
-					data = mt.f_reader(Path(f"adb_payloads/{cmd[1]}.adbp"))
-					if len(data) == 2 and data[0] == None:
-						pt.fail(data[1])
-					else:
-						for item in data[0].splitlines():
-							if mt.check_key(item):
-								c, st, sd = mt.exec_cmd(f"adb shell input keyevent {item}")
-								if c == 0:
-									pt.success(f"Keyevent {item} was sent.")
-								else:
-									pt.fail(f"Keyevent {item} wasnt sent.")
-							elif mt.check_text(item):
-								if item == "## File created by adb_ripper":
-									print("Comment passed.")
-								else:
-									c, st, sd = mt.exec_cmd(f"adb shell input text {item.replace(" ", "_")}")
-									if c == 0:
-										pt.success(f"Text '{item}' was sent.")
-									else:
-										pt.fail(f"Text '{item}' wasnt sent.")
-							sleep(int(cmd[2]))
-				else:
-					print("Invalid file type.")
+									pt.fail(f"Text '{line}' wasnt sent.")
+									
+						sleep(delay)
+			return
 		
 		elif len(cmd) == 1:
 			if cmd[0] == "list":
 				if mt.check_path(Path("adb_payloads")):
 					pt.success("")
-					for p in Path("adb_payloads").rglob("*.adbp"):
+					for p in Path("adb_payloads").glob("*.adbp"):
 						print(p.name)
 				else:
 					print(f"The {cl.GREEN}adb_payloads{cl.RESET} dont exists.")
+			return
 					
-		elif cmd_l < 1:
-			print(f"Too few args, use {cl.RED}help ripper{cl.RESET}.")
-			
-		else:
-			print(f"Unknown instructions, use {cl.RED}help ripper{cl.RESET}.")
-			
-					
-		return
+		print(f"Unknown instructions, use {cl.RED}help ripper{cl.RESET}.")
 							
 	def do_edit(self, arg):
 		'''Edit the content for any file that you choose.
@@ -185,23 +173,26 @@ class AdbRipper(cmd.Cmd):
 		Ex: 
 		 edit /home/admin/file.txt
 		'''
-		cmd = arg.split()
+		
+		cmd = shlex.split(arg)
 		cmd_l = len(cmd)
+		
 		if not arg:
-			print("Please provide a valid file path.")
+			print("Please provide a valid file path.");return
+			
 		elif cmd_l == 1:
 			try:
 				p = Path(arg).resolve()
 				if p.exists():
-					subprocess.run(f"nano {p}", shell=True, text=True)
+					subprocess.run(["nano", p])
 				else:
 					p.write_text("## File created by adb_ripper")
-					subprocess.run(f"nano {p}", shell=True, text=True)
+					subprocess.run(["nano", p])
 			except Exception as e:
-				pt.error({str(e)})
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help edit{cl.RESET}.")
-		return
+				pt.error(f"Error: {str(e)}")
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help edit{cl.RESET}.")
 		
 	def do_del(self, arg):
 		'''Deletes a file.
@@ -210,28 +201,25 @@ class AdbRipper(cmd.Cmd):
 		 del file.txt
 		 del /home/admin/secret.dat
 		'''
-		b_size = 4 * 1024
-		cmd = arg.split()
+		
+		cmd = shlex.split(arg)
 		cmd_l = len(cmd)
+		
 		if not arg:
-			print("Please provide a valid file path.")
+			print("Please provide a valid file path.");return
+			
 		elif cmd_l == 1:
 			try:
 				p = Path(arg).resolve()
 				if p.exists() and p.is_file():
-					with p.open("r+b") as f:
-						while chunk := f.read(b_size):
-							chunk_len = len(chunk)
-							f.seek(-chunk_len, 1)
-							f.write(bytes(random.getrandbits(8) for _ in range(chunk_len)))
 					remove(p)
 				else:
 					print("File doesnt exists.")
 			except Exception as e:
 				pt.error(str(e))
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help del{cl.RESET}.")
-		return
+			return
+				
+		print(f"Incorrect usage, use {cl.RED}help del{cl.RESET}.")
 	
 	def do_clear_pkg(self, args):
 		'''Clear a target package data.
@@ -240,32 +228,25 @@ class AdbRipper(cmd.Cmd):
 		 clear_pkg com.termux
 		 clear_pkg com.whatsapp
 		'''
-		cmd = args.split()
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if not args:
-			print("Please provide a package name.")
+			print("Please provide a package name.");return
+		
 		elif cmd_l == 1:
-			allowed_names = [
-				"com", 
-				"org", 
-				"tv", 
-				"app", 
-				"android", 
-				"ai", 
-				"vendor", 
-			]
-			condition = True if "." in cmd[0] and cmd[0].split(".")[0] in allowed_names else False
-			if condition:
-				c, st, sd = mt.exec_cmd(f"adb shell pm clear {cmd[0]}")
+			package = cmd[0]
+			if re.match(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$", package):
+				c, st, sd = mt.exec_cmd(["adb", "shell", "pm", "clear", package])
 				if c == 0:
-					pt.success(f"Package data in '{cmd[0]}' was wiped.")
+					pt.success(f"Package data in '{package}' was wiped.")
 				else:
-					pt.fail(f"Package data in '{cmd[0]}' couldnt be wiped.")
+					pt.fail(f"Package data in '{package}' couldnt be wiped.")
 			else:
 				print("Set a valid package name.")
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help clear_pkg{cl.RESET}.")
-		return
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help clear_pkg{cl.RESET}.")
 		
 	def do_uninstall(self, args):
 		'''Uninstall a target package.
@@ -275,34 +256,27 @@ class AdbRipper(cmd.Cmd):
 		 uninstall com.whatsapp
 		 uninstall tv.cinema
 		'''
-		cmd = args.split()
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if not args:
-			print("Please provide a package name.")
+			print("Please provide a package name.");return
+		
 		elif cmd_l == 1:
-			allowed_names = [
-				"com", 
-				"org", 
-				"tv", 
-				"app", 
-				"android", 
-				"ai", 
-				"vendor", 
-			]
-			condition = True if "." in cmd[0] and cmd[0].split(".")[0] in allowed_names else False
-			if condition:
-				c, st, sd = mt.exec_cmd(f"adb uninstall {cmd[0]}")
+			package = cmd[0]
+			
+			if re.match(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$", package):
+				c, st, sd = mt.exec_cmd(["adb", "uninstall", package])
 				if c == 0:
-					pt.success(f"Package '{cmd[0]}' was removed.")
+					pt.success(f"Package '{package}' was removed.")
 				else:
-					pt.fail(f"Package '{cmd[0]}' couldnt be removed: {st}")
+					pt.fail(f"Package '{package}' couldnt be removed: {st}")
 			else:
 				print(f"Invalid package, use {cl.RED}help uninstall{cl.RESET}.")
-		elif cmd_l > 1:
-			print(f"Too few args, use {cl.RED}help uninstall{cl.RESET}.")
-		else:
-			print(f"Unknown instructions, use {cl.RED}help uninstall{cl.RESET}.")
-		return
+			
+			return
+				
+		print(f"Unknown instructions, use {cl.RED}help uninstall{cl.RESET}.")
 		
 	def do_install(self, args):
 		'''Install a target package from storage.
@@ -311,28 +285,32 @@ class AdbRipper(cmd.Cmd):
 		 install /home/admin/app.apk
 		 install app.apk
 		'''
-		cmd = args.split()
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+
 		if not args:
-			print("Please provide a package name.")
+			print("Please provide a package name.");return
+
 		elif cmd_l == 1:
-			if ".apk" in cmd[0][-4:]:
-				pt.proc(f"Trying to install '{cmd[0]}' in target device.")
-				c, st, sd = mt.exec_cmd(f"adb install {cmd[0]}", use_sh=True)
+			apk = cmd[0]
+			if apk.endswith(".apk"):
+				pt.proc(f"Trying to install '{apk}' in target device.")
+				c, st, sd = mt.exec_cmd(["adb", "install", apk])
 				if c == 0:
-					pt.success(f"Package '{cmd[0]}' was installed.")
+					pt.success(f"Package '{apk}' was installed.")
 				else:
-					pt.fail(f"Package '{cmd[0]}' couldnt be installed: {st}")
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help install{cl.RESET}.")
-		else:
-			print(f"Unknown instructions, use {cl.RED}help install{cl.RESET}.")
-		return
+					pt.fail(f"Package '{apk}' couldnt be installed: {st}")
+			return
+
+		print(f"Unknown instructions, use {cl.RED}help install{cl.RESET}.")
 		
 	def do_sysinf(self, args):
 		'''Shows device informations.'''
+		
 		sys_dict = mt.sysinf()
+		
 		if sys_dict:
+			print("")
 			for i, v in sys_dict.items():
 				print(f"{cl.GREEN}{i}{cl.RESET}: {v}")
 		else:
@@ -340,21 +318,18 @@ class AdbRipper(cmd.Cmd):
 				
 	def do_getpro(self, args):
 		'''Get device properties.'''
-		r = subprocess.run(
-			f"adb shell getprop",
-			shell=True,
-			capture_output=True,
-			text=True
-		)
-		if r.returncode == 0:
+		
+		c, st, sd = mt.exec_cmd(["adb", "shell", "getprop"])
+		
+		if c == 0:
 			pt.success("")
-			print(r.stdout)
+			print(sd)
 		else:
-			pt.fail(r.stderr)
+			pt.fail(st)
 	
 	def do_shell(self, args):
 		'''Open a raw shell in the target.'''
-		subprocess.run("adb shell", shell=True, text=True)		
+		subprocess.run(["adb","shell"])		
 			
 	def do_send(self, args):
 		'''Send an file to the target.
@@ -363,26 +338,29 @@ class AdbRipper(cmd.Cmd):
 		 send file.dat /sdcard/
 		 send /home/admin/app.apk /sdcard/Download/
 		'''
-		cmd = args.split()
+		
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if cmd_l == 2:
+			
 			try:
-				paths = [Path(cmd[0]).resolve(), Path(cmd[1]).resolve()]
+				paths = [Path(cmd[0]), Path(cmd[1])]
+				c, st, sd = mt.exec_cmd(["adb", "push", cmd[0], cmd[1]])
+				if c == 0:
+					pt.success(f"File '{cmd[0]}' was sent to the target.")
+				else:
+					pt.fail(f"File '{cmd[0]}' couldnt be send the target.")
 			except Exception as e:
-				pt.error(str(e))
-			r = subprocess.run(f"adb push {cmd[0]} {cmd[1]}", shell=True, text=True)
-			if r.returncode == 0:
-				pt.success(f"File '{cmd[0]}' was sent to the target.")
-			else:
-				pt.fail(f"File '{cmd[0]}' couldnt be send the target.")
-		elif cmd_l < 2:
-			print(f"Too few args, use {cl.RED}help send{cl.RESET}.")
-		elif cmd_l > 2:
-			print(f"Too many args, use {cl.RED}help send{cl.RESET}.")
+				pt.error(str(e));return
+			
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help send{cl.RESET}.")
 				
 	def do_logcat(self, args):
 		'''Displays target device logcat.'''
-		subprocess.run("adb logcat -L", shell=True, text=True)
+		subprocess.run(["adb", "logcat", "-L"])
 		
 	def do_list_pkgs(self, args):
 		'''List all device packages.
@@ -391,34 +369,32 @@ class AdbRipper(cmd.Cmd):
 		 list
 		 list search termux
 		'''
-		cmd = args.split()
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if cmd_l == 0:
-			c, st, sd = mt.exec_adb("shell pm list packages")
+			c, st, sd = mt.exec_cmd(["adb", "shell", "pm", "list" ,"packages"])
 			if c == 0:
 				pt.success("")
-				try:
-					for line in sd.splitlines():
-						_f = line.split(":")
-						print(_f[1])
-						sleep(0.005)
-				except KeyboardInterrupt:
-					return
+				lines = [line.split(":")[1] for line in sd.splitlines()]
+				for line in lines:
+					print(line)
+					sleep(0.005)
 			else:
 				pt.fail(f"Cant list packages: {st}")
+			return
+		
 		elif cmd_l == 2 and cmd[0] == "search":
-			c, st, sd = mt.exec_cmd(f"adb shell pm list packages | grep {cmd[1]}", use_sh=True)
+			c, st, sd = mt.exec_cmd(["adb", "shell", "pm", "list" ,"packages"])
 			if c == 0:
 				pt.success("")
-				for line in sd.splitlines():
-					_f = line.split(":")
-					print(_f[1])
-			else:
-				pt.fail(f"Cant find string '{cmd[1]}'.")
-		elif cmd_l > 2:
-			print(f"Too many args, use {cl.RED}help list_pkgs{cl.RESET}.")
-		else:
-			print(f"Unknown instructions, use {cl.RED}help list_pkgs{cl.RESET}.")
+				lines = [line.split(":")[1] for line in sd.splitlines()]
+				for l in lines:
+					if cmd[1] in l:
+						print(l)
+			return
+		
+		print(f"Unknown instructions, use {cl.RED}help list_pkgs{cl.RESET}.")
 		
 	def do_start_app(self, package_name):
 		'''Starts a application on target by package name.
@@ -427,38 +403,27 @@ class AdbRipper(cmd.Cmd):
 		 start_app com.termux
 		 start_app com.whatsapp
 		'''
-		cmd = package_name.split()
+		
+		cmd = shlex.split(package_name)
 		cmd_l = len(cmd)
+		
 		if cmd_l == 1:
-			mainget = subprocess.run(
-				f"adb shell dumpsys package {cmd[0]} | grep -A 1 'MAIN'",
-				shell=True, 
-				capture_output=True, 
-				text=True
+			c, st, sd = mt.exec_cmd(
+				["adb", "shell", "cmd", "package", "resolve-activity", "--brief", cmd[0]]
 			)
-			if mainget.returncode == 0:
-				string = str(mainget.stdout)
-				searcher = string.find('/')
-				grep = string[searcher:]
-				grep2 = grep.find(' ')
-				final_str = grep[:grep2].replace('/', '')
-				r = subprocess.run(
-					f"adb shell am start -n {cmd[0]}/{final_str}", 
-					shell=True, 
-					capture_output=True, 
-					text=True
-				)
-				if r.returncode == 0:
+			if c == 0:
+				final_str = sd.splitlines()[-1]
+				c1, st1, sd1 = mt.exec_cmd(["adb", "shell", "am", "start", "-n", final_str])
+				if c1 == 0:
 					pt.success(f"App '{cmd[0]}' started.")
 				else:
-					pt.fail(f"App '{cmd[0]}' couldnt be started.")
+					pt.fail(f"App '{cmd[0]}' couldnt be started: {st1}")
 			else:
 				pt.fail("The program couldnt get package >MAIN<.")
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help start_app{cl.RESET}.")
-		elif cmd_l < 1:
-			print(f"Too few args, use {cl.RED}help start_app{cl.RESET}.")
-		return
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help start_app{cl.RESET}.")
+		
 		
 	def do_dump(self, args):
 		'''Dump a target device file to your device.
@@ -467,23 +432,20 @@ class AdbRipper(cmd.Cmd):
 		 send /sdcard/file.dat /home/admin/
 		 send /sdcard/Download/app.apk /home/admin/
 		'''
-		cmd = args.split()
+		
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if cmd_l == 2:
-			try:
-				paths = [Path(cmd[1]).resolve(), Path(cmd[0]).resolve()]
-			except Exception as e:
-				pt.error(str(e))
-			r = subprocess.run(f"adb pull {cmd[0]} {cmd[1]}", shell=True, text=True)
-			if r.returncode == 0:
+			
+			c, st, sd = mt.exec_cmd(["adb", "pull", cmd[0], cmd[1]])
+			if c == 0:
 				pt.success(f"File '{cmd[0]}' was dumped to '{cmd[1]}'.")
 			else:
 				pt.fail(f"File '{cmd[0]}' cant be dumped.")
-		elif cmd_l < 2:
-			print(f"Too few args, use {cl.RED}help dump{cl.RESET}.")
-		elif cmd_l > 2:
-			print(f"Too many args, use {cl.RED}help dump{cl.RESET}.")
-		return
+			return
+
+		print(f"Incorrect usage, use {cl.RED}help dump{cl.RESET}.")
 				
 	def do_dump_sd(self, args):
 		'''Dump what kind of data you want in '/sdcard/'.
@@ -495,14 +457,15 @@ class AdbRipper(cmd.Cmd):
 		 dump_sd doc,docx,pdf,xlsx - Dump documents
 		 dump_sd png,pdf - Only .png photos and .pdf files.
 		'''
+		
 		def process_file(item):
 			try:
-				p = Path(item).resolve().suffix
+				p = Path(item).suffix
 				_type = mt.get_file_type(p)
 				full_path = f"adb_dumps/{self.device}/{_type}/"
 				Path(full_path).mkdir(parents=True, exist_ok=True)
 				pt.proc(f"Dumping '{item}'.")
-				c1, st1, sd1 = mt.exec_cmd(f"adb pull \"{item}\" {full_path}")
+				c1, st1, sd1 = mt.exec_cmd(["adb", "pull", item, full_path])
 				if c1 == 0:
 					pt.success(f"File '{item}' was dumped to '{full_path}'.")
 				else:
@@ -511,99 +474,147 @@ class AdbRipper(cmd.Cmd):
 				pt.error(f"Dumping process ended, visit 'adb_dumps/{self.device}' to find your dumps.")
 			except Exception as e:
 				pt.error(f"Error: {e}.")
+				
+		def _list_this_shit(search_exts: tuple):
+			
+			c, st, sd = mt.exec_cmd(["adb","shell","find","/sdcard/", "-type", "f"])
+			
+			if c != 0 or not sd:
+				pt.fail("Failed to find files.")
+				return
+			
+			with tpe(max_workers=4) as exe:
+				exe.map(
+					process_file,
+					(line for line in sd.split("\n") if line.lower().endswith(search_exts))
+				)
+		
 		Path(f"adb_dumps/{self.device}").mkdir(parents=True, exist_ok=True)
 		
 		if not args:
 			print(f"Please provide args, or use {cl.RED}help dump_sd{cl.RESET}."); return
 		
-		cmd = args.split()
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if "," in cmd[0] and cmd_l == 1:
-			items = cmd[0].split(",")
-			_format = mt.formater(items)
-			c, st, sd = mt.exec_cmd(f"adb shell find /sdcard/ | grep -iE \"({_format})\"", use_sh=True)
-			if c == 0:
-				l = sd.splitlines()
-				with tpe(max_workers=3) as exe:
-					exe.map(process_file, l)
-			else:
-				pt.error(f"Failed to execute adb: {st}.")
+			
+			exts = tuple(
+				ext if ext.startswith(".") else f".{ext}" 
+				for item in cmd[0].split(",")
+				if re.match(r"^\.?[a-z]{3,5}$", (ext := item.strip().lower()))
+			)
+			
+			_list_this_shit(exts)
+				
+			return
+		
 		elif "," not in args and cmd_l == 1:	
-			i = "."+cmd[0] if "." not in cmd[0] else cmd[0]
-			c, st, sd = mt.exec_cmd(f"adb shell find /sdcard/ | grep -iE \"(\\{i})\"", use_sh=True)
-			if c == 0:
-				l = sd.splitlines()
-				with tpe(max_workers=3) as exe:
-					exe.map(process_file, l)
-			else:
-				print(f"Failed to find files.")
-		elif cmd_l < 1:
-			print(f"Too few args, use {cl.RED}help dump_sd{cl.RESET}.")
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help dump_sd{cl.RESET}.")
+			
+			if not cmd[0].startswith("."):
+				cmd[0] = "."+cmd[0]
+				
+			_list_this_shit((cmd[0],))
+			
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help dump_sd{cl.RESET}.")
 				
 	def do_dump_wpp(self, args):
-		'''Try dump high priority whatsapp data.'''
+	    '''Try dump high priority whatsapp data.'''
+	
+	    BASE_REMOTE = "/sdcard/Android/media/com.whatsapp/WhatsApp/Media"
+	
+	    def list_files(remote_path):
+	        c, st, sd = mt.exec_cmd([
+	            "adb", "shell", "find", remote_path, "-type", "f"
+	        ])
+	        if c != 0 or not sd:
+	            pt.fail(f"Failed to list files in '{remote_path}'")
+	            return []
+	        return sd.splitlines()
+	
+	    def pull_file(remote_file):
+	        try:
+	            pt.proc(f"Pulling '{remote_file}'")
+	
+	            c, st, sd = mt.exec_cmd([
+	                "adb", "pull", remote_file, str(base_p)
+	            ])
+	
+	            if c == 0:
+	                pt.success(f"Pulled '{remote_file}'")
+	            else:
+	                pt.fail(f"Failed '{remote_file}': {st}")
+	
+	        except Exception as e:
+	            pt.error(str(e))
+	
+	    def format_files(src_path):
+	        _format = mt.get_file_type(src_path.suffix)
+	        dest = base_p / f"{_format}"
+	        dest.mkdir(parents=True, exist_ok=True)
+	
+	        dest_file = dest / src_path.name
+	
+	        try:
+	            if dest_file.exists():
+	                if mt.file_hash(src_path) == mt.file_hash(dest_file):
+	                    return
+	                else:
+	                    counter = 1
+	                    new_dest = dest_file
+	                    while new_dest.exists():
+	                        new_dest = dest / f"{src_path.stem}_{counter}{src_path.suffix}"
+	                        counter += 1
+	                    shutil.move(str(src_path), str(new_dest))
+	            else:
+	                shutil.move(str(src_path), str(dest_file))
+	        except Exception as e:
+	            pt.fail(str(e))
+	
+	    if mt.check_wpp_path():
+	        base_p = Path(f"adb_dumps/{self.device}/WhatsApp")
+	        base_p.mkdir(parents=True, exist_ok=True)
+	
+	        wpp_dirs = [
+	            "WhatsApp Audio",
+	            "WhatsApp Documents",
+	            "WhatsApp Images",
+	            "WhatsApp Profile Photos",
+	            "WhatsApp Video",
+	            "WhatsApp Video Notes",
+	            "WhatsApp Voice Notes",
+	        ]
+	
+	        all_files = []
+	
+	        for path in wpp_dirs:
+	            remote = f"{BASE_REMOTE}/{path}"
+	            pt.proc(f"Scanning '{remote}'")
+	            files = list_files(remote)
+	            all_files.extend(files)
+	
+	        if not all_files:
+	            pt.fail("No files found.")
+	            return
+	
+	        with tpe(max_workers=3) as exe:
+	            exe.map(pull_file, all_files)
+	
+	        files = [p for p in base_p.rglob("*") if p.is_file()]
+	        with tpe(max_workers=6) as exe:
+	            exe.map(format_files, files)
+
+	        for w_path in wpp_dirs:
+	            wpp_path = base_p / w_path
+	            if wpp_path.exists():
+	                shutil.rmtree(wpp_path)
+	
+	    else:
+	        pt.fail("Cant access whatsapp folder.")
+	
 		
-		def dump_paths(path):
-				pt.proc(f"Trying dump '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/'. ")
-				c, st, sd = mt.exec_adb(
-					f"pull \"/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/\" {str(base_p)}"
-				)
-				if c == 0:
-					pt.success(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' dumped.")
-				else:
-					pt.fail(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' couldnt be dumped, attempting again...")	
-					c1, st1, sd1 = mt.exec_adb(f"pull \"/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/\" {str(base_p)}")
-					if c1 == 0:
-						pt.success(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' dumped.")
-					else:
-						pt.fail(f"Path '/sdcard/Android/media/com.whatsapp/WhatsApp/Media/{path}/' cant be dumped.")
-		
-		def format_files(src_path):
-			_format = mt.get_file_type(src_path.suffix)
-			dest = base_p / f"{_format}"
-			dest.mkdir(parents=True, exist_ok=True)
-			dest_file = dest / src_path.name
-			try:
-				if dest_file.exists():
-					if mt.file_hash(src_path) == mt.file_hash(dest_file):
-						return
-					else:
-						counter = 1
-						new_dest = dest_file
-						while new_dest.exists():
-							new_dest = dest / f"{src_path.stem}_{counter}{src_path.suffix}"
-							counter += 1
-						shutil.move(str(src_path), str(new_dest))
-				else:
-					shutil.move(str(src_path), str(dest_file))
-			except Exception as e:
-				pt.fail(str(e))
-		
-		if mt.check_wpp_path():
-			base_p = Path(f"adb_dumps/{self.device}/WhatsApp")
-			base_p.mkdir(parents=True, exist_ok=True)
-			wpp_dirs = [
-				"WhatsApp Audio",
-				"WhatsApp Documents",
-				"WhatsApp Images",
-				"WhatsApp Profile Photos",
-				"WhatsApp Video",
-				"WhatsApp Video Notes",
-				"WhatsApp Voice Notes",
-			]
-			for path in wpp_dirs:
-				dump_paths(path)
-			files = [p for p in base_p.rglob("*") if p.is_file()]
-			with tpe(max_workers=6) as exe:
-				exe.map(format_files, files)
-			for w_path in wpp_dirs:
-				wpp_path = base_p / w_path
-				if wpp_path.exists():
-					shutil.rmtree(wpp_path)
-		else:
-			pt.fail("Cant access whatsapp folder.")
 							
 	def do_check_connection(self, args):
 		'''Check if theres a device connected.'''
@@ -625,20 +636,11 @@ class AdbRipper(cmd.Cmd):
 			try:				
 				pt.success("Screen recording started, press CTRL + C to stop.")
 				try:
-					subprocess.run(
-						f"adb shell screenrecord /sdcard/{filename}",
-						shell=True, 
-						text=True
-					)
+					subprocess.run(["adb", "shell", "screenrecord", f"/sdcard/{filename}"])
 				except KeyboardInterrupt:
 					sleep(3)
-					s = subprocess.run(
-						f"adb pull /sdcard/{filename} adb_dumps/{self.device}",
-						shell=True,
-						capture_output=True,
-						text=True
-					)
-					if s.returncode == 0:
+					c, st, sd = mt.exec_cmd(["adb", "pull", f"/sdcard/{filename}", f"adb_dumps/{self.device}"])
+					if c == 0:
 						pt.success(f"File '{filename}' was saved on adb_dumps/{self.device}.")
 						q = pt.question("Do you want to open this recording?(y/n): ")
 						if q.lower() == "y":
@@ -647,8 +649,9 @@ class AdbRipper(cmd.Cmd):
 							return
 			except Exception as e:
 				print(str(e))
-		else:
-			print(f"You dont need {cl.RED}args{cl.RESET}.")
+			return
+			
+		print(f"Incorrect usage, use {cl.RED}help screenrecord{cl.RESET}.")
 			
 	def do_screencap(self, args):
 		'''Take a screenshot of the target device.
@@ -657,19 +660,10 @@ class AdbRipper(cmd.Cmd):
 		if not args:
 			filename = f"SCREENSHOT_{mt.get_time()}.png"
 			try:				
-				r = subprocess.run(
-					f"adb shell screencap /sdcard/{filename}",
-					shell=True, 
-					text=True
-				)
-				if r.returncode == 0:
-					s = subprocess.run(
-						f"adb pull /sdcard/{filename} adb_dumps/{self.device}",
-						shell=True,
-						capture_output=True,
-						text=True
-					)
-					if s.returncode == 0:
+				c, st, sd = mt.exec_cmd(["adb", "shell", "screencap", f"/sdcard/{filename}"])
+				if c == 0:
+					c1, st1, sd1 = mt.exec_cmd(["adb", "pull", f"/sdcard/{filename}", f"adb_dumps/{self.device}"])
+					if c1 == 0:
 						pt.success(f"File '{filename}' was saved on adb_dumps/{self.device}.")
 						q = pt.question("Do you want to open this screenshot?(y/n): ")
 						if q.lower() == "y":
@@ -678,8 +672,9 @@ class AdbRipper(cmd.Cmd):
 							return
 			except Exception as e:
 				print(str(e))
-		else:
-			print(f"You dont need {cl.RED}args{cl.RESET}.")
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help screenrecord{cl.RESET}.")
 		
 	def do_ls(self, args):
 		'''Lists folders and content.
@@ -688,8 +683,10 @@ class AdbRipper(cmd.Cmd):
 		 ls
 		 ls /
 		'''
-		cmd = args.split()
+		
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if cmd_l == 0:
 			p = Path.cwd()
 			p_data = mt.path_runner(p)
@@ -700,6 +697,8 @@ class AdbRipper(cmd.Cmd):
 					sleep(0.01)
 			else:
 				pt.fail(f"Failed to list path content: {p_data}")
+			return
+		
 		elif cmd_l == 1 and "-" not in cmd[0][0]:
 			p = Path(cmd[0])
 			p_data = mt.path_runner(p)
@@ -710,8 +709,9 @@ class AdbRipper(cmd.Cmd):
 					sleep(0.01)
 			else:
 				pt.fail(f"Failed to list path content: {p_data}")
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help ls{cl.RESET}.")
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help ls{cl.RESET}.")
 		
 	def do_cat(self, args):
 		'''Shows files content
@@ -719,10 +719,12 @@ class AdbRipper(cmd.Cmd):
 		Ex:
 		 cat /etc/os-release
 		'''
-		cmd = args.split()
+		
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if cmd_l == 1:
-			file_path = Path(cmd[0]).resolve()
+			file_path = Path(cmd[0])
 			try:
 				c, d = mt.read_c(file_path)
 				if c == 0:
@@ -732,10 +734,10 @@ class AdbRipper(cmd.Cmd):
 					pt.fail(f"Error while reading content: {d}")
 			except TypeError:
 				pt.fail(f"The file '{file_path}' dont exists.")
-		elif cmd_l < 1:
-			print(f"Too few args, use {cl.RED}help cat{cl.RESET}.")
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help dump{cl.RESET}.")
+			return
+		
+		print(f"Incorrect usage, use {cl.RED}help dump{cl.RESET}.")
+		
 			
 	def do_wipe(self, args):
 		'''Wipe any file on target device.
@@ -743,37 +745,32 @@ class AdbRipper(cmd.Cmd):
 		Ex:
 		 wipe /sdcard/file.mp4
 		'''
-		cmd = args.split()
+		
+		cmd = shlex.split(args)
 		cmd_l = len(cmd)
+		
 		if cmd_l == 1 and "/sdcard/" in cmd[0]:
 			if mt.check_rm_sh():
-				c, st, sd = mt.exec_cmd(
-					f"adb shell sh /sdcard/rm.sh {cmd[0]}",
-				)
+				c, st, sd = mt.exec_cmd(["adb", "shell", "sh", f"/sdcard/rm.sh", cmd[0]])
 				if c == 0:
 					pt.success(f"File '{cmd[0]}' deleted from device storage.")
 				else:
 					pt.fail(f"File '{cmd[0]}' cant be deleted: {st}")
 			else:
 				c1, st1, sd1 = mt.exec_cmd(
-					"adb push rm.sh /sdcard/"
+					["adb", "push", "rm.sh", "/sdcard/"]
 				)
 				if c1 == 0 and mt.check_rm_sh():
-					c2, st2, sd2 = mt.exec_cmd(
-						f"adb shell sh /sdcard/rm.sh {cmd[0]}",
-					)
+					c2, st2, sd2 = mt.exec_cmd(["adb", "shell", "sh", "/sdcard/rm.sh", cmd[0]])
 					if c2 == 0:
 						pt.success(f"File '{cmd[0]}' deleted from device storage.")
 					else:
 						pt.fail(f"File '{cmd[0]}' cant be deleted: {st2}.")
 				else:
 					pt.fail("Couldnt send script 'rm.sh' to '/sdcard/'.")
-		elif cmd_l > 1:
-			print(f"Too many args, use {cl.RED}help wipe{cl.RESET}.")
-		elif cmd_l < 1:
-			print(f"Too few args, use {cl.RED}help wipe{cl.RESET}.")
-		else:
-			print(f"Unknown instructions, use {cl.RED}help wipe{cl.RESET}.")
+			return
+		
+		print(f"Unknown instructions, use {cl.RED}help wipe{cl.RESET}.")
 			
 	def do_banner(self, arg):
 		'''Displays a banner on the screen.'''
@@ -802,7 +799,7 @@ def run(i: bool, q: bool):
 	
 	if i and not d:
 		c = mt.connect_device()
-		if "connected" not in c:
+		if not c:
 			print("Can't connect to device.")
 		d = mt.check_device()
 	

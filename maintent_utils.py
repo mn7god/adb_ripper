@@ -2,20 +2,31 @@ import re
 import shlex
 import hashlib
 import platform
+import ipaddress
 from os import system
 from pathlib import Path
 from subprocess import run
 from datetime import datetime
 
 class Maintenance:
-	
+    
+    @staticmethod
+    def check_regex(pattern, text):
+        return re.search(pattern, text) is not None
+        
+    @staticmethod
+    def check_ip(ip: str):
+        try:
+            ipaddress.ip_address(ip);return True
+        except:
+            return False
+            
     @staticmethod
     def read_c(path):
         p = Path(path)
         try:
-            if p.exists() and p.is_file():
-                data = p.read_text()
-                return 0, data
+            if p.exists() and p.is_file(): 
+                return 0, p.read_text()
         except Exception as e:
             return 1, str(e)
             
@@ -29,7 +40,7 @@ class Maintenance:
                     paths.append(path)
             return paths
         except Exception as e:
-            return e
+            return None
             
     @staticmethod
     def file_hash(path):
@@ -40,14 +51,15 @@ class Maintenance:
         return h.hexdigest()
 	    
     @staticmethod
-    def get_file_type(file_type):
+    def get_file_type(ft):
+        file_type = ft.lower().lstrip(".")
         type_dict = {
             'fonts': ["otf","ttf"],
             'package': ["zip", "7z", "tar"],
             'exec': ["apk", "xapk", "exe"],
             'image': ["jpg", "png", "webp", "gif", "jpeg", "svg", "heic"],
             'text': ["txt", "csv", "dat", "log", "json", "xml"],
-            'document': ["pdf", "xslx", "doc", "docx", "odt", "rtf"],
+            'document': ["pdf", "xlsx", "doc", "docx", "odt", "rtf"],
             'video': ["mp4", "mkv", "avi", "mov"],
             'audio': ["mp3", "ogg", "m4a", "opus"],
             'script': ["sh", "py", "js", "php", "c", "cpp", "html"]
@@ -62,13 +74,12 @@ class Maintenance:
                         it[item] = ty
             return it
             
-        elif "." in file_type:
-            spliter = file_type.split(".")
-            for item in spliter:
-                for ty, value in type_dict.items():
-                    if item in value:
-                        return ty
-    
+        else:
+            for ty, exts in type_dict.items():
+                if file_type in exts:
+                    return ty
+            return None
+        
     @staticmethod
     def open_file(file_name):
         Maintenance.exec_cmd(["xdg-open", file_name])
@@ -89,50 +100,44 @@ class Maintenance:
             return None, "File not found"
         except Exception as e:
             return None, str(e)
-
     @staticmethod
-    def exec_cmd(command, use_sh=False, timeout=60):
+    def exec_cmd(command, shell=False, timeout=60):
         try:
-            if use_sh:
-                cmd = command if isinstance(command, str) else " ".join(command)
+            if shell:
+                if not isinstance(command, str):
+                    raise ValueError("shell=True requer string")
+                cmd = command
             else:
-                cmd = command if isinstance(command, list) else shlex.split(command)
-
+                if isinstance(command, str):
+                    cmd = shlex.split(command)
+                else:
+                    cmd = command
+    
             sub = run(
                 cmd,
-                shell=use_sh,
+                shell=shell,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout
             )
-
-            return (
-                sub.returncode,
-                sub.stderr.strip() if sub.stderr else "",
-                sub.stdout.strip() if sub.stdout else ""
-            )
-
+    
+            return sub.returncode, sub.stderr, sub.stdout
+    
         except Exception as e:
-            return (1, str(e), "")
+            return 1, str(e), ""
             
     @staticmethod
     def check_rm_sh():
         c, st, sd = Maintenance.exec_cmd(
-            "adb shell ls /sdcard/rm.sh",
-            use_sh=True
+            ["adb", "shell", "ls", "/sdcard/rm.sh"]
         )
-        if c == 0:
-            return True
-
-    @staticmethod
-    def exec_adb(command):
-        return Maintenance.exec_cmd(f"adb {command}")
+        return c == 0
         
     @staticmethod
     def check_if_linux():
-        if platform.system() == "Linux":
-            return True
-        return False
+        return platform.system() == "Linux"
 
     @staticmethod
     def check_adb():
@@ -145,7 +150,6 @@ class Maintenance:
            return True
 
         return False
-
 
     @staticmethod
     def check_device():
@@ -187,14 +191,14 @@ class Maintenance:
             "WhatsApp Voice Notes",
         }
 
-        c1, _, _ = Maintenance.exec_adb(
-            "shell ls /sdcard/Android/media/com.whatsapp"
+        c1, _, _ = Maintenance.exec_cmd(
+            ["adb", "shell", "ls", "/sdcard/Android/media/com.whatsapp"]
         )
         if c1 != 0:
             return False
 
-        c2, _, sd2 = Maintenance.exec_adb(
-            "shell ls /sdcard/Android/media/com.whatsapp/WhatsApp"
+        c2, _, sd2 = Maintenance.exec_cmd(
+            ["adb", "shell", "ls", "/sdcard/Android/media/com.whatsapp/WhatsApp"]
         )
         if c2 != 0:
             return False
@@ -215,7 +219,7 @@ class Maintenance:
         }
         adb_info = {}
         for i, value in _items.items():
-            c, st, sd = Maintenance.exec_cmd(value, use_sh=True)
+            c, st, sd = Maintenance.exec_cmd(value, shell=True)
             if c == 0:
                 adb_info[i] = sd
         if adb_info:
@@ -232,33 +236,51 @@ class Maintenance:
             return True
         except ValueError:
             return False
-    
+            
     @staticmethod
     def connect_device():
         mt = Maintenance
-        pair_port = input("Pair port: ")
-        pair_code = input("Pairing code: ")
-        connect_port = input("Connect port: ")
-        if mt.check_int(pair_port):
-            if mt.check_int(pair_code):
-                c, st, sd = Maintenance.exec_cmd(f"adb pair {device}:{pair_port} {pair_code}")
-                if c == 0:
-                    if "Successfully paired to" in sd:
-                        if mt.check_int(connect_port):
-                            c1, st1, sd1 = Maintenance.exec_cmd(f"adb connect {device}:{connect_port}")
-                            if c1 == 0 and "connected to" in sd1:
-                                return "connected"
-                            else:
-                                return "couldnt connect"
-                        else:
-                            return "invalid port"
-                else:
-                    return "couldnt pair"
-            else:
-                return "invalid pair code"
-        else:
-            return "invalid pair port"
-                            
+    
+        device = input("Device IP: ").strip()
+        pair_port = input("Pair port: ").strip()
+        pair_code = input("Pairing code: ").strip()
+        connect_port = input("Connect port: ").strip()
+    
+        # validações básicas
+        if not mt.check_ip(device):
+            print("Invalid IP address.")
+            return False
+    
+        if not (mt.check_int(pair_port) and 1 <= int(pair_port) <= 65535):
+            print("Invalid pair port.")
+            return False
+    
+        if not mt.check_text(pair_code):
+            print("Invalid pairing code.")
+            return False
+    
+        if not (mt.check_int(connect_port) and 1 <= int(connect_port) <= 65535):
+            print("Invalid connect port.")
+            return False
+    
+        c, st, sd = mt.exec_cmd([
+            "adb", "pair", f"{device}:{pair_port}", pair_code
+        ])
+    
+        if c != 0 or "Successfully paired" not in sd:
+            print(f"Pairing failed: {st or sd}")
+            return False
+    
+        c1, st1, sd1 = mt.exec_cmd([
+            "adb", "connect", f"{device}:{connect_port}"
+        ])
+    
+        if c1 != 0 or "connected to" not in sd1:
+            print(f"Connection failed: {st1 or sd1}")
+            return False
+    
+        return True
+
     @staticmethod
     def check_key(key):
         return key.isdigit() and int(key) < 286
