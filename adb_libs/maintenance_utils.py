@@ -387,5 +387,5 @@ class Maintenance:
     def open_file(file_name):
         mt = Maintenance
         if not mt.detect_termux():
-			mt.exec_cmd(["xdg-open", file_name])
+            mt.exec_cmd(["xdg-open", file_name])
             
