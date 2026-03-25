@@ -75,7 +75,6 @@ class Maintenance:
             'audio': ["mp3", "ogg", "m4a", "opus"],
             'script': ["sh", "py", "js", "php", "c", "cpp", "html"]
         }
-        # só aceita lista nesse formato: ','
         it = {}
         if "," in file_type:
             spliter = file_type.split(",")
