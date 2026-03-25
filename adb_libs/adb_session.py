@@ -378,8 +378,7 @@ class AdbSession:
         pt.proc("Starting live html in browser... press CTRL + C to stop.")
         
         if tmx:
-            subprocess.run(["termux-url-open", str(html)])
-            self.screenshot(2, png_path)
+            pt.fail("Termux is not compatible with live command.")
         else:
             subprocess.run(["xdg-open", str(html)])
             self.screenshot(2, png_path)
