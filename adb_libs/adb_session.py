@@ -141,34 +141,6 @@ class AdbSession:
                     sleep(delay)
                 except KeyboardInterrupt:
                     pt.proc("Spam stoped");break
-        
-        elif mode == "swipe-spam" and len(custom) == 4:
-            input("Press ENTER to start spam, use CTRL + C to stop.")
-            while 1 != 0:
-                try:
-                    self.send_key(custom)
-                    sleep(delay)
-                except KeyboardInterrupt:
-                    pt.proc("Spam stoped");break
-        
-        elif mode == "tap-spam" and len(custom) == 4:
-            input("Press ENTER to start spam, use CTRL + C to stop.")
-            while 1 != 0:
-                try:
-                    self.send_key(custom)
-                    sleep(delay)
-                except KeyboardInterrupt:
-                    pt.proc("Spam stoped");break
-        
-        elif mode == "keyevent-spam" and len(custom) == 1:
-            input("Press ENTER to start spam, use CTRL + C to stop.")
-            while 1 != 0:
-                try:
-                    self.send_key(custom)
-                    sleep(delay)
-                except KeyboardInterrupt:
-                    pt.proc("Spam stoped");break
-        
         else:
             pt.fail("Unknown mode")
 
