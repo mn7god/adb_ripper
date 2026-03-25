@@ -5,13 +5,7 @@
 ## Setup
 
 ```bash
-sudo apt -y install python3-venv \
-python3 -m venv venv \
-git clone https://github.com/mn7god/adb_ripper \
-cd adb_ripper \
-python3 -m venv venv \
-source venv/bin/activate \
-pip install -r requirements.txt \
+sudo apt -y install python3-venv;python3 -m venv venv;git clone https://github.com/mn7god/adb_ripper;cd adb_ripper; python3 -m venv venv;source venv/bin/activate; pip install -r requirements.txt
 ```
 
 ## Starting
