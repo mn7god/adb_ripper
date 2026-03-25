@@ -381,16 +381,11 @@ class Maintenance:
     
     @staticmethod
     def detect_termux():
-        e = getenv("HOME")
-        if 'com.termux' in e:
-            return True
-        return False
+        return "com.termux" in getenv("PREFIX")
     
     @staticmethod
     def open_file(file_name):
         mt = Maintenance
-        if mt.detect_termux():
-            mt.exec_cmd(["termux-open-url", file_name])
-        
-        mt.exec_cmd(["xdg-open", file_name])
+        if not mt.detect_termux():
+			mt.exec_cmd(["xdg-open", file_name])
             
