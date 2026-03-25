@@ -20,13 +20,6 @@ class Maintenance:
     @staticmethod
     def check_regex(pattern, text):
         return re.search(pattern, text) is not None
-        
-    @staticmethod
-    def check_ip(ip: str):
-        try:
-            ipaddress.ip_address(ip);return True
-        except:
-            return False
 
     @staticmethod
     def return_sorted_dict(d: dict):
@@ -89,10 +82,6 @@ class Maintenance:
                 if file_type in exts:
                     return ty
             return None
-        
-    @staticmethod
-    def open_file(file_name):
-        Maintenance.exec_cmd(["xdg-open", file_name])
 
     @staticmethod
     def get_time():
@@ -205,49 +194,6 @@ class Maintenance:
             return True
         except ValueError:
             return False
-            
-    @staticmethod
-    def connect_device():
-        mt = Maintenance
-    
-        device = input("Device IP: ").strip()
-        pair_port = input("Pair port: ").strip()
-        pair_code = input("Pairing code: ").strip()
-        connect_port = input("Connect port: ").strip()
-    
-        if not mt.check_ip(device):
-            print("Invalid IP address.")
-            return False
-    
-        if not (mt.check_int(pair_port) and 1 <= int(pair_port) <= 65535):
-            print("Invalid pair port.")
-            return False
-    
-        if not mt.check_text(pair_code):
-            print("Invalid pairing code.")
-            return False
-    
-        if not (mt.check_int(connect_port) and 1 <= int(connect_port) <= 65535):
-            print("Invalid connect port.")
-            return False
-    
-        c, st, sd = mt.exec_cmd([
-            "adb", "pair", f"{device}:{pair_port}", pair_code
-        ])
-    
-        if c != 0 or "Successfully paired" not in sd:
-            print(f"Pairing failed: {st or sd}")
-            return False
-    
-        c1, st1, sd1 = mt.exec_cmd([
-            "adb", "connect", f"{device}:{connect_port}"
-        ])
-    
-        if c1 != 0 or "connected to" not in sd1:
-            print(f"Connection failed: {st1 or sd1}")
-            return False
-    
-        return True
 
     @staticmethod
     def check_key(key):
@@ -328,15 +274,14 @@ class Maintenance:
         points = 0
         
         points += len_q1 * 1
-        points += len_q2 * 3   # peso maior
-        points += len_q3 * 2   # peso médio
+        points += len_q2 * 3  
+        points += len_q3 * 2   
 
         if len_q2 > len_q3 and len_q2 > len_q1:
             points += 5
         elif len_q3 > len_q2 and len_q3 > len_q1:
             points += 4
 
-        # bônus por volume
         if len(lines) >= 10:
             points += 3
         if len(lines) >= 20:
@@ -440,5 +385,12 @@ class Maintenance:
         if 'com.termux' in e:
             return True
         return False
+    
+    @staticmethod
+    def open_file(file_name):
+        mt = Maintenance
+        if mt.detect_termux():
+            mt.exec_cmd(["termux-open-url", file_name])
         
+        mt.exec_cmd(["xdg-open", file_name])
             
