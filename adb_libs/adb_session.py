@@ -8,7 +8,7 @@ from pathlib import Path
 from tabulate import tabulate
 from .printit import Color as cl
 from .printit import PrintIt as pt
-from .maintent_utils import Maintenance as mt
+from .maintenance_utils import Maintenance as mt
 from concurrent.futures import ThreadPoolExecutor
 
 PKG_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$")
