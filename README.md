@@ -5,7 +5,7 @@
 ## Setup
 
 ```bash
-sudo apt install python3-venv \
+sudo apt -y install python3-venv \
 python3 -m venv venv \
 git clone https://github.com/mn7god/adb_ripper \
 cd adb_ripper \
