@@ -2,14 +2,19 @@
 
 'adb_ripper' is public project focused in explore and abuse adb functions.
 
-## Tutorial
+## Setup
 
 ```bash
-sudo apt install python3-venv
-python3 -m venv venv
-source venv/bin/activate
-pip install requirements.txt
+sudo apt install python3-venv \
+python3 -m venv venv \
+source venv/bin/activate \
+pip install requirements.txt \
+```
 
+## Starting
+
+```bash
+python3 adb_ripper.py
 ```
 
 ## DISCLAIMER:
@@ -24,6 +29,6 @@ By using this project, you acknowledge that:
 
 You are responsible for complying with applicable laws and regulations.
 You understand the risks of interacting with Android devices at a system level.
-The authors are not liable for any damage, data loss, security issues, account bans, warranty voiding, or other consequences resulting from the use or misuse of this software.
+The author are not liable for any damage, data loss, security issues, account bans, warranty voiding, or other consequences resulting from the use or misuse of this software.
 
 Use at your own risk.
