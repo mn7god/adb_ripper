@@ -1,5 +1,3 @@
-## adb_ripper
-
 ## Introduction
 
 'adb_ripper' is public project focused in explore and abuse adb functions.
@@ -7,7 +5,11 @@
 ## Tutorial
 
 ```bash
-git clone https://github.com/mn7god/adb_ripper; cd adb_ripper; python3 adb_ripper.py
+sudo apt install python3-venv
+python3 -m venv venv
+source venv/bin/activate
+pip install requirements.txt
+
 ```
 
 ## DISCLAIMER:
