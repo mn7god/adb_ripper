@@ -56,4 +56,12 @@ class PrintIt:
 	def question(msg):
 		i = input(f"[{Color.GRAY}QUESTION{Color.RESET}]: {msg}")
 		return i
+	def yes_no(msg):
+		i = input(f"[{Color.GRAY}QUESTION{Color.RESET}]: {msg}(yes/no): ")
+		if i.lower().strip() in ("yes", "yy", "y"):
+			return True
+		else:
+			return False
+	def incorrect_usage(cmd):
+		print(f"[{Color.RED}ERROR{Color.RESET}] Incorrect usage of '{cmd}', use 'help {cmd}'")
 		

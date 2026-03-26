@@ -8,7 +8,7 @@ from pathlib import Path
 from tabulate import tabulate
 from .printit import Color as cl
 from .printit import PrintIt as pt
-from .maintenance_utils import Maintenance as mt
+from .maintent_utils import Maintenance as mt
 from concurrent.futures import ThreadPoolExecutor
 
 PKG_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$")
@@ -23,9 +23,6 @@ class AdbSession:
 
     def _run(self, cmd):
         return mt.exec_cmd(["adb", "-s", self.device] + cmd)
-
-    def _unsafe_run(self, cmd):
-        return mt.exec_cmd(f"adb -s {self.device} {cmd}", shell=True)
 
     def check_wpp_path(self):
 
@@ -63,7 +60,7 @@ class AdbSession:
     def send_text(self, text: str):
         _formated = text.replace(" ", "%s").replace("\t", "%s")
         
-        c, st, sd = self._unsafe_run(f"shell input text \"{_formated}\"")
+        c, st, sd = self._run(["shell", "input", "text", _formated])
         if c == 0:
             
             pt.success(f"Text '{text}' was sent to device '{self.device}'.");return
@@ -103,50 +100,61 @@ class AdbSession:
             self.send_key(item)
             
     def input_spam(self, mode=None, custom=None, delay=0.01):
-        if mode == "swipe-random":
-            input("Press ENTER to start spam, use CTRL + C to stop.")
-            while 1 != 0:
-                try:
-                    r = mt._generator(4)
-                    self.send_key(" ".join(r))
-                    sleep(delay)
-                except KeyboardInterrupt:
-                    pt.proc("Spam stoped");break
+        
+        r = pt.yes_no("'input_spam' will make massive sends of key inputs in device, do you want to proceed anyway?")
+        
+        if r:
+            if mode == "swipe-random":
+                input("Press ENTER to start spam, use CTRL + C to stop.")
+                while 1 != 0:
+                    try:
+                        r = mt._generator(4)
+                        self.send_key(" ".join(r))
+                        sleep(delay)
+                    except KeyboardInterrupt:
+                        pt.proc("Spam stoped");break
+                    
+            elif mode == "tap-random":
+                input("Press ENTER to start spam, use CTRL + C to stop.")
+                while 1 != 0:
+                    try:
+                        r = mt._generator(2)
+                        self.send_key(" ".join(r))
+                        sleep(delay)
+                    except KeyboardInterrupt:
+                        pt.proc("Spam stoped");break
+            
+            elif mode == "keyevent-random":
+                input("Press ENTER to start spam, use CTRL + C to stop.")
+                while 1 != 0:
+                    try:
+                        r = mt._generator(1)
+                        self.send_key(" ".join(r))
+                        sleep(delay)
+                    except KeyboardInterrupt:
+                        pt.proc("Spam stoped");break
+            
+            elif mode == "press-spam":
+                input("Press ENTER to start spam, use CTRL + C to stop.")
+                while 1 != 0:
+                    try:
+                        self.send_key("")
+                        sleep(delay)
+                    except KeyboardInterrupt:
+                        pt.proc("Spam stoped");break
+                        
+            else:
+                pt.fail("Unknown mode")
                 
-        elif mode == "tap-random":
-            input("Press ENTER to start spam, use CTRL + C to stop.")
-            while 1 != 0:
-                try:
-                    r = mt._generator(2)
-                    self.send_key(" ".join(r))
-                    sleep(delay)
-                except KeyboardInterrupt:
-                    pt.proc("Spam stoped");break
-        
-        elif mode == "keyevent-random":
-            input("Press ENTER to start spam, use CTRL + C to stop.")
-            while 1 != 0:
-                try:
-                    r = mt._generator(1)
-                    self.send_key(" ".join(r))
-                    sleep(delay)
-                except KeyboardInterrupt:
-                    pt.proc("Spam stoped");break
-        
-        elif mode == "press-spam":
-            input("Press ENTER to start spam, use CTRL + C to stop.")
-            while 1 != 0:
-                try:
-                    self.send_key("")
-                    sleep(delay)
-                except KeyboardInterrupt:
-                    pt.proc("Spam stoped");break
         else:
-            pt.fail("Unknown mode")
+            pt.fail("User aborted.")
 
     def search(self, term: str):
         if "*" not in term and "?" not in term:
             term = f"*{term}*"
+            
+        if mt.dangerous_strings(term):
+            pt.error("Dangerous strings detected, aborting...");return
 
         c, st, sd = self._run(["shell", "find", "/sdcard/", "-type", "f", "-name", term])
 
@@ -166,7 +174,7 @@ class AdbSession:
             payloads = mt.list_adbp()
             if payloads != {}:
                 _payload_format = mt.payload_formatter(payloads)
-                print(tabulate(_payload_format, headers=["Payload Name", "Description", "Complexity"], tablefmt="simple_grid"));return
+                print(tabulate(_payload_format, headers=["Payload Name", "Description", "Density"], tablefmt="simple_grid"));return
                 
             pt.fail("None payloads found in 'adb_payloads' path.")
 
@@ -190,22 +198,30 @@ class AdbSession:
             
     def clear_package(self, pkg: str):
         if PKG_RE.match(pkg):
-            
-            c, st, sd = self._run(["shell", "pm", "clear", pkg])
-            if c == 0:
-                pt.success(f"Package '{pkg}' data wiped.");return
-
-        pt.fail(f"Failed to wipe '{pkg}' data.")
+            r = pt.yes_no(f"Package '{pkg}' data will be wiped, do you want to proceed?")
+            if r:
+                c, st, sd = self._run(["shell", "pm", "clear", pkg])
+                if c == 0:
+                    pt.success(f"Package '{pkg}' data wiped.");return
+                    
+                pt.fail(f"Failed to wipe '{pkg}' data.")
+                
+            else:
+                pt.fail("User aborted.")
         
     def send(self, local: str, remote: str):
         src = Path(local)
     
         if not src.exists() or not src.is_file():
-            pt.fail(f"Local file not found: '{local}'")
+            pt.error(f"Local file not found: '{local}'")
             return
-    
+            
         if not remote.startswith("/sdcard/"):
-            pt.fail("Remote path must start with '/sdcard/'")
+            pt.error("Remote path must start with '/sdcard/'")
+            return
+            
+        if mt.check_path_traversal(remote):
+            pt.error("Path traversing detected, aborting...")
             return
     
         c, st, sd = self._run(["push", str(src), remote])
@@ -233,12 +249,16 @@ class AdbSession:
         
     def uninstall(self, pkg: str):
         if PKG_RE.match(pkg):
+            r = pt.yes_no(f"Package '{pkg}' will be removed from device if it exists, do you want proceed?")
+            if r:
+                c, st, sd = self._run(["uninstall", pkg])
+                if c == 0:
+                    pt.success(f"Package '{pkg}' uninstalled.");return
+                    
+                pt.fail(f"Failed to delete '{pkg}' from device '{self.device}'.")
             
-            c, st, sd = self._run(["uninstall", pkg])
-            if c == 0:
-                pt.success(f"Package '{pkg}' uninstalled.");return
-
-        pt.fail(f"Failed to delete '{pkg}' from device '{self.device}'.")
+            else:
+                pt.fail("User aborted.")
 
     def install(self, apk: str):
         if apk.endswith(".apk") and Path(str(apk)).exists:
@@ -280,6 +300,10 @@ class AdbSession:
         pt.fail("No packages matched.")
                 
     def getprop(self, term=None):
+        if mt.dangerous_strings(term):
+            pt.error("Dangerous strings found in term value, aborting...")
+            return
+        
         if not term:
             c, st, sd = self._run(["shell", "getprop"])
             if c == 0 and sd:
@@ -378,7 +402,8 @@ class AdbSession:
         pt.proc("Starting live html in browser... press CTRL + C to stop.")
         
         if tmx:
-            pt.fail("Termux is not compatible with live command.")
+            subprocess.run(["termux-url-open", str(html)])
+            self.screenshot(2, png_path)
         else:
             subprocess.run(["xdg-open", str(html)])
             self.screenshot(2, png_path)
@@ -387,8 +412,13 @@ class AdbSession:
         c, st, sd = self._run(["shell", "find", "/sdcard/", "-type", "f"])
         if c != 0:
             pt.fail(f"Failed to fetch files in '{self.device}'.");return
-        
+            
         exts = tuple([f".{ext.lstrip('.')}" for ext in extensions])
+        
+        for ext in exts:
+            if mt.dangerous_strings(ext):
+                pt.error("Dangerous strings in extensions, aborting...")
+                break;return
         
         files = []
         
@@ -402,46 +432,57 @@ class AdbSession:
                     files.append(f)
             except Exception:
                 continue
-
+        
         def worker(f):
             ext = Path(f).suffix
             dest = f"adb_dumps/{self.device}/{mt.get_file_type(ext)}"
             Path(dest).mkdir(parents=True, exist_ok=True)
             self.dump(f, str(dest))
-
-        with ThreadPoolExecutor(max_workers=workers) as exe:
-            list(exe.map(worker, files))
-
-        pt.success(f"Dumped {len(files)} files to 'adb_dumps/{self.device}'.")
+            
+        r = pt.yes_no(f"Your extensions matches with '{len(files)}' files from device storage, do you want dump all of them?")
+        if r:
+            with ThreadPoolExecutor(max_workers=workers) as exe:
+                list(exe.map(worker, files))
+            
+            pt.success(f"Dumped {len(files)} files to 'adb_dumps/{self.device}'.")
+            
+        else:
+            
+            pt.fail("Dumping aborted.")
     
     def dump_wpp(self):
         files = []
         
-        try:
-            if not self.check_wpp_path():
-                pt.fail("WhatsApp media path not accessible.")
-                return
-        
-            base = Path(f"adb_dumps/{self.device}/WhatsApp")
-            base.mkdir(parents=True, exist_ok=True)
-        
-            remote_base = "/sdcard/Android/media/com.whatsapp/WhatsApp/Media/"
-        
-            c, st, sd = self._run([
-                "shell", "find", remote_base, "-type", "f"
-            ])
-        
-            if c != 0 or not sd:
-                pt.fail("No WhatsApp media files found.")
-                return
-        
-            files = [f.strip() for f in sd.splitlines()]
-        
-            for f in files:
-                self.dump(f, str(base))
-                
-        except KeyboardInterrupt:
-            pt.success(f"Dumped {len(files)} files from '{self.device}' to '{base}'.");return
+        r = pt.yes_no("'dump_wpp' will made a massive adb server requests, do you want continue anyway?")
+        if r.lower().strip() in ("yes", "yy", "y"):
+            try:
+                if not self.check_wpp_path():
+                    pt.fail("WhatsApp media path not accessible.")
+                    return
             
-        pt.success(f"Dumped {len(files)} files from '{self.device}' to '{base}'.")
+                base = Path(f"adb_dumps/{self.device}/WhatsApp")
+                base.mkdir(parents=True, exist_ok=True)
+            
+                remote_base = "/sdcard/Android/media/com.whatsapp/WhatsApp/Media/"
+            
+                c, st, sd = self._run([
+                    "shell", "find", remote_base, "-type", "f"
+                ])
+            
+                if c != 0 or not sd:
+                    pt.fail("No WhatsApp media files found.")
+                    return
+            
+                files = [f.strip() for f in sd.splitlines()]
+            
+                for f in files:
+                    self.dump(f, str(base))
+                    
+            except KeyboardInterrupt:
+                pt.success(f"Dumped {len(files)} files from '{self.device}' to '{base}'.");return
+            
+            pt.success(f"Dumped {len(files)} files from '{self.device}' to '{base}'.")
+        
+        else:
+            pt.fail("Dump whatsapp data aborted.")
     

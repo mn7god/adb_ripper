@@ -1,5 +1,5 @@
 import argparse
-from .maintenance_utils import Maintenance as mt
+from .maintent_utils import Maintenance as mt
 
 class Parsers:
 	
