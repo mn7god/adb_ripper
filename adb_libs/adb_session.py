@@ -84,14 +84,14 @@ class AdbSession:
             c, st, sd = self._run(["shell", "input", "keyevent", key])
             if c == 0:
                 pt.success(f"Key event '{key}' was sent to device '{self.device}'.");return
-                
-        elif " " in str(key) and not key.isdigit():
-            self.send_text(key);return
             
         elif key == "" and not key.isdigit():
             c, st, sd = self._run(["shell", "input", "press"])
             if c == 0:
                 pt.success(f"Press event was sent to device '{self.device}'.");return
+                
+        elif " " in str(key) or not key.isdigit():
+            self.send_text(key);return
             
         pt.fail(f"Key '{key}' cant be sent to device '{self.device}'.")
 
@@ -174,7 +174,7 @@ class AdbSession:
             payloads = mt.list_adbp()
             if payloads != {}:
                 _payload_format = mt.payload_formatter(payloads)
-                print(tabulate(_payload_format, headers=["Payload Name", "Description", "Density"], tablefmt="simple_grid"));return
+                print(tabulate(_payload_format, headers=["Payload Name", "Description"], tablefmt="simple_grid"));return
                 
             pt.fail("None payloads found in 'adb_payloads' path.")
 

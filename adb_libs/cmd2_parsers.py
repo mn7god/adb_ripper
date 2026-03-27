@@ -1,5 +1,6 @@
 import argparse
 from .maintent_utils import Maintenance as mt
+from pathlib import Path
 
 class Parsers:
 	
@@ -7,14 +8,8 @@ class Parsers:
 	group = sessions_parser.add_mutually_exclusive_group()
 	group.add_argument('-l', action="store_true", help="List all adb sessions alive.")
 	group.add_argument('-K', action="store_true", help="Kill all adb sessions alive.")
-	group.add_argument('-k', metavar=(
-	        "ADB_SESSION"
-	    ), help="Kill specified adb session.", 
-	)
-	group.add_argument('-L', metavar=(
-	        "ADB_SESSION"
-	    ), help="Login into a adb session."
-	)
+	group.add_argument('-k', metavar=("ADB_SESSION"), choices=mt.check_devices(), help="Kill specified adb session.")
+	group.add_argument('-L', metavar=("ADB_SESSION"), choices=mt.check_devices(), help="Login into a adb session.")
 	group.add_argument('-c', nargs=2, metavar=(
 	        "DEVICE_IP",
 	        "DEVICE_PORT"
@@ -33,10 +28,7 @@ class Parsers:
 	group = sessions2_parser.add_mutually_exclusive_group()
 	group.add_argument('-l', action="store_true", help="List all adb sessions alive.")
 	group.add_argument('-K', action="store_true", help="Kill all adb sessions alive.")
-	group.add_argument('-k', metavar=(
-	        "ADB_SESSION"
-	    ), help="Kill specified adb session."
-	)
+	group.add_argument('-k', metavar=("ADB_SESSION"), choices=mt.check_devices(), help="Kill specified adb session.")
 	
 	send_key_parser = argparse.ArgumentParser(description="Send integer key events to device.")
 	send_key_parser.add_argument('key', type=int, help="Key need to be an integer between 286 and 0")
@@ -53,7 +45,8 @@ class Parsers:
 	ripper_parser = argparse.ArgumentParser(description="Send text event to input of device.")
 	ripper_group = ripper_parser.add_mutually_exclusive_group()
 	ripper_group.add_argument('-l', action="store_true", help="List all available payloads.")
-	ripper_group.add_argument('-r', nargs=2, metavar=("ADBP_NAME", "DELAY"), help="Run payload by name and accepts custom delay.")
+	ripper_group.add_argument('-r', metavar=("ADBP_NAME"), choices=mt.simple_list_adbp(), help="Run payload by name.")
+	ripper_parser.add_argument('-d', metavar=("DELAY"), type=float, help="Custom delay for payload execution.")
 	
 	clear_pkg_parser = argparse.ArgumentParser(description="Clear a package internal data.")
 	clear_pkg_parser.add_argument('pkg', help="Need to be a real package name.")
@@ -82,10 +75,10 @@ class Parsers:
 	
 	send_parser = argparse.ArgumentParser(description="Sends a file from local path to the device.")
 	send_parser.add_argument('local_path', type=str, help="Local file path to send.")
-	send_parser.add_argument('dest_path', type=str, help="Remote path to send.")
+	send_parser.add_argument('dest_path', type=str, default="/sdcard/" help="Remote path to send.")
 	
 	dump_parser = argparse.ArgumentParser(description="Dumps a file from remote path to a local path.")
-	dump_parser.add_argument('remote_path', type=str, help="Remote file to dump.")
+	dump_parser.add_argument('remote_path', type=str, default="/sdcard/", help="Remote file to dump.")
 	dump_parser.add_argument('local_path', type=str, help="Local path to receive file.")
 	
 	dump_sd_parser = argparse.ArgumentParser(description="Dumps a massive files from device internal storage.")

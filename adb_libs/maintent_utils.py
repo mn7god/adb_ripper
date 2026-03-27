@@ -177,7 +177,7 @@ class Maintenance:
         devices = Maintenance.check_devices()
         sessions = {}
         for device in devices:
-            c, st, sd = Maintenance.exec_cmd(["adb", "-s", device, "shell", "uname", "-srm"])
+            c, st, sd = Maintenance.exec_cmd(["adb", "-s", device, "shell", "uname", "-sm"])
             if c == 0 and sd:
                 sessions[device] = sd
 
@@ -282,7 +282,7 @@ class Maintenance:
         init_list = []
         
         for key, value in dictio.items():
-            init_list.append([key, value[1], value[2]])
+            init_list.append([key, value[1]])
 
         return init_list
         
