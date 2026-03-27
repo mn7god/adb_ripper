@@ -110,7 +110,7 @@ class SessionManager(AdbRipper):
             raise ValueError("Need an specified device.")
         self.session = AdbSession(self.device)
         self.prompt = f"{cl.WHITE_LINE}session{cl.RESET}:{cl.DARK_GREEN}{self.device}{cl.RESET}> "
-        mt.check_paths()
+        mt.check_paths(self.device)
     
     @cmd2.with_argparser(prs.sessions2_parser)
     def do_sessions(self, args):
