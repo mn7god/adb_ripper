@@ -14,13 +14,11 @@ PAIR_CODE_RE = re.compile(r"^([1-9]{1}[0-9]{5})$")
 
 class AdbRipper(cmd2.Cmd):
     
-    def __init__(self, no_intro=False):
-        super().__init__()
-        self.no_intro = no_intro
-        if self.no_intro:
-            self.intro = ""
-        else:
-            self.intro = pt.banner()
+    def __init__(self):
+        super().__init__(
+            persistent_history_file=".adb_history",
+            persistent_history_length=1000
+        )
         self.prompt = f"{cl.WHITE_LINE}adbr{cl.RESET}> "
         
     @cmd2.with_argparser(prs.sessions_parser)
@@ -359,6 +357,9 @@ usage: dump_wpp'''
         
 if __name__ == "__main__":
     if mt.check_adb():
-        AdbRipper(no_intro=True).cmdloop()
+        a = AdbRipper()
+        a.cmdloop()
 
-    
+        
+
+
