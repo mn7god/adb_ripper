@@ -6,7 +6,7 @@ from adb_libs.printit import Color as cl
 from adb_libs.printit import PrintIt as pt
 from adb_libs.adb_session import AdbSession 
 from adb_libs.cmd2_parsers import Parsers as prs
-from adb_libs.maintent_utils import Maintenance as mt
+from adb_libs.maintenance_utils import Maintenance as mt
 
 IP_RE = re.compile(r"^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)$")
 PORT_RE = re.compile(r"^(0|[1-9]{4,5})$")
