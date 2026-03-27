@@ -37,7 +37,7 @@ class AdbRipper(cmd2.Cmd):
             s = mt.return_sessions()
             if s != {}:
                 table = mt.sessions_formatter(s)
-                print(tabulate(table, headers=["Device","System","Kernel Release","Arch"], tablefmt="simple_grid"))
+                print(tabulate(table, headers=["Device Name","System Kernel","Arch"], tablefmt="simple_grid"))
             else:
                 pt.fail("No valid sessions online found.")
 
@@ -204,13 +204,12 @@ class SessionManager(AdbRipper):
             self.session.ripper("list")
             return
             
-        elif args.r:
-            _payload, _delay = args.r
-            if mt.check_int(_delay):
-                self.session.ripper(mode="run", payload=_payload, delay=int(_delay))
-                return
+        elif args.r and args.d is not None:
+            self.session.ripper(mode="run", payload=args.r, delay=args.d)
+            return
             
-            self.session.ripper(mode="run", payload=_payload)
+        elif args.r:
+            self.session.ripper(mode="run", payload=args.r)
             return
 
         pt.incorrect_usage("ripper")
@@ -341,6 +340,7 @@ usage: shell'''
         pt.incorrect_usage("input_spam")
         
     def do_live(self, args):
+        '''Starts a simulation of screenshare.'''
         self.session.live()
         
     def do_dump_wpp(self, args):
