@@ -267,8 +267,8 @@ class SessionManager(AdbRipper):
         
     @cmd2.with_argparser(prs.send_parser)
     def do_send(self, args):
-        if args.local_path and args.dest_path:
-            self.session.send(args.local_path, args.dest_path);return
+        if args.local_path and args.remote_path:
+            self.session.send(args.local_path, args.remote_path);return
             
         pt.incorrect_usage("send")
         
@@ -359,7 +359,3 @@ if __name__ == "__main__":
     if mt.check_adb():
         a = AdbRipper()
         a.cmdloop()
-
-        
-
-
