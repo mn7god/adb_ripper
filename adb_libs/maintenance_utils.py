@@ -177,7 +177,7 @@ class Maintenance:
         devices = Maintenance.check_devices()
         sessions = {}
         for device in devices:
-            c, st, sd = Maintenance.exec_cmd(["adb", "-s", device, "shell", "uname", "-srm"])
+            c, st, sd = Maintenance.exec_cmd(["adb", "-s", device, "shell", "uname", "-sm"])
             if c == 0 and sd:
                 sessions[device] = sd
 
@@ -224,7 +224,7 @@ class Maintenance:
                 return False, ""
                 
             for l in data_splited:
-                if re.match(r"\d{1,3}", l) or re.match(r"[a-zA-Z]", l):
+                if re.match(r"\d{1}", l) or re.match(r"[a-zA-Z]", l):
                     count = 1;break
                     
             if count == 0:
@@ -252,49 +252,6 @@ class Maintenance:
             input_events = [line for line in data.splitlines() if not line.startswith(skip_flags)]
 
         return status, input_events
-        
-    @staticmethod
-    def return_adbp_type(path: Path):
-        mt = Maintenance
-        c = mt.check_default_adbp(path)
-
-        if not c[0]:
-            return "Unknown"
-
-        s, lines = mt.check_input_events(path)
-        if not s:
-            return "Unknown"
-
-        q_1 = [l for l in lines if re.fullmatch(r"\d{1,3}", l)]
-        q_3 = [l for l in lines if re.fullmatch(r"\d{1,3} \d{1,3}", l)]
-        q_2 = [l for l in lines if re.fullmatch(r"\d{1,4} \d{1,4} \d{1,4} \d{1,4}", l)]
-
-        len_q1, len_q2, len_q3 = len(q_1), len(q_2), len(q_3)
-
-        points = 0
-        
-        points += len_q1 * 1
-        points += len_q2 * 3  
-        points += len_q3 * 2   
-
-        if len_q2 > len_q3 and len_q2 > len_q1:
-            points += 5
-        elif len_q3 > len_q2 and len_q3 > len_q1:
-            points += 4
-
-        if len(lines) >= 10:
-            points += 3
-        if len(lines) >= 20:
-            points += 2
-
-        if points >= 25:
-            level = "High"
-        elif points >= 10:
-            level = "Medium"
-        else:
-            level = "Low"
-
-        return level
     
     @staticmethod
     def list_adbp():
@@ -303,9 +260,8 @@ class Maintenance:
         
         for p in path.glob("*.adbp"):
             desc = Maintenance.check_default_adbp(p)
-            _type = Maintenance.return_adbp_type(p)
             if desc[0]:
-                files[p.name] = [p, desc[1].strip(), _type]
+                files[p.name] = [p, desc[1].strip()]
                 
         return files
         
@@ -326,7 +282,7 @@ class Maintenance:
         init_list = []
         
         for key, value in dictio.items():
-            init_list.append([key, value[1], value[2]])
+            init_list.append([key, value[1]])
 
         return init_list
         
@@ -381,11 +337,30 @@ class Maintenance:
     
     @staticmethod
     def detect_termux():
-        return "com.termux" in getenv("PREFIX")
+        e = getenv("HOME")
+        if 'com.termux' in e:
+            return True
+        return False
     
     @staticmethod
     def open_file(file_name):
         mt = Maintenance
-        if not mt.detect_termux():
-            mt.exec_cmd(["xdg-open", file_name])
+        if mt.detect_termux():
+            mt.exec_cmd(["termux-open-url", file_name])
+        
+        mt.exec_cmd(["xdg-open", file_name])
+        
+    @staticmethod
+    def check_path_traversal(path: str):
+        black_list = ["../", "..//", "\\..", "\\..", "/..", "//.."]
+        for i in black_list:
+            if i in path:
+                return True;break
+                
+    @staticmethod
+    def dangerous_strings(text: str):
+        black_list = ["&&", ";", "||", "|"]
+        for i in black_list:
+            if i in text:
+                return True;break
             
