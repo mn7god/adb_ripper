@@ -1,4 +1,5 @@
 import re
+import sys
 import cmd2
 import argparse
 from tabulate import tabulate
@@ -14,11 +15,16 @@ PAIR_CODE_RE = re.compile(r"^([1-9]{1}[0-9]{5})$")
 
 class AdbRipper(cmd2.Cmd):
     
-    def __init__(self):
+    def __init__(self, no_intro=False):
         super().__init__(
             persistent_history_file=".adb_history",
             persistent_history_length=1000
         )
+        self.no_intro = no_intro
+        if self.no_intro:
+            self.intro = ""
+        else:
+            self.intro = pt.banner()
         self.prompt = f"{cl.WHITE_LINE}adbr{cl.RESET}> "
         
     @cmd2.with_argparser(prs.sessions_parser)
@@ -102,7 +108,7 @@ class AdbRipper(cmd2.Cmd):
 class SessionManager(AdbRipper):
     
     def __init__(self, device: str):
-        super().__init__()
+        super().__init__(no_intro=True)
         self.device = device
         if not self.device:
             raise ValueError("Need an specified device.")
@@ -355,7 +361,18 @@ usage: dump_wpp'''
             
         pt.incorrect_usage("screencap")
         
+
+arg = argparse.ArgumentParser()
+arg.add_argument('-q', '--quiet', action="store_true", help="Runs without banner display.")
+args, unknown = arg.parse_known_args()
+
+sys.argv = [sys.argv[0]] + unknown
+
 if __name__ == "__main__":
     if mt.check_adb():
-        a = AdbRipper()
-        a.cmdloop()
+        if args.quiet:
+            AdbRipper(no_intro=True).cmdloop()
+        else:
+            AdbRipper().cmdloop()
+    else:
+        pt.error("Please install android-tools.")
