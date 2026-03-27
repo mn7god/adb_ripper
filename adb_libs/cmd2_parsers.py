@@ -75,7 +75,7 @@ class Parsers:
 	
 	send_parser = argparse.ArgumentParser(description="Sends a file from local path to the device.")
 	send_parser.add_argument('local_path', type=str, help="Local file path to send.")
-	send_parser.add_argument('dest_path', type=str, default="/sdcard/" help="Remote path to send.")
+	send_parser.add_argument('dest_path', type=str, default="/sdcard/", help="Remote path to send.")
 	
 	dump_parser = argparse.ArgumentParser(description="Dumps a file from remote path to a local path.")
 	dump_parser.add_argument('remote_path', type=str, default="/sdcard/", help="Remote file to dump.")
