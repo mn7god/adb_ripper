@@ -1,8 +1,6 @@
 import re
 import cmd2
 import argparse
-from os import remove
-from time import sleep
 from tabulate import tabulate
 from adb_libs.printit import Color as cl
 from adb_libs.printit import PrintIt as pt
@@ -363,6 +361,4 @@ if __name__ == "__main__":
     if mt.check_adb():
         AdbRipper(no_intro=True).cmdloop()
 
-        
-
-
+    
