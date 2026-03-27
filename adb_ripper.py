@@ -1,11 +1,8 @@
 import re
 import cmd2
-import shlex
 import argparse
-import subprocess
 from os import remove
 from time import sleep
-from pathlib import Path
 from tabulate import tabulate
 from adb_libs.printit import Color as cl
 from adb_libs.printit import PrintIt as pt
