@@ -74,12 +74,12 @@ class Parsers:
 	get_prop_parser.add_argument('term', nargs="?", metavar=("TERM"), help="Accepts a optional term to filter.")
 	
 	send_parser = argparse.ArgumentParser(description="Sends a file from local path to the device.")
-	send_parser.add_argument('local_path', type=str, help="Local file path to send.")
-	send_parser.add_argument('dest_path', type=str, default="/sdcard/", help="Remote path to send.")
+	send_parser.add_argument('local_path', type=str, choices=[str(Path.cwd())], help="Local file path to send.")
+	send_parser.add_argument('remote_path', type=str, choices=["/sdcard/"], help="Remote path to send.")
 	
 	dump_parser = argparse.ArgumentParser(description="Dumps a file from remote path to a local path.")
-	dump_parser.add_argument('remote_path', type=str, default="/sdcard/", help="Remote file to dump.")
-	dump_parser.add_argument('local_path', type=str, help="Local path to receive file.")
+	dump_parser.add_argument('remote_path', type=str, choices=["/sdcard/"], help="Remote file to dump.")
+	dump_parser.add_argument('local_path', type=str, choices=[str(Path.cwd())], help="Local path to receive file.")
 	
 	dump_sd_parser = argparse.ArgumentParser(description="Dumps a massive files from device internal storage.")
 	dump_sd_group = dump_sd_parser.add_mutually_exclusive_group()
