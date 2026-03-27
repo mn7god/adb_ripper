@@ -1,366 +1,378 @@
 import re
-import shlex
-import shutil
-import random
-import hashlib
-import platform
-from pathlib import Path
-from subprocess import run
-from datetime import datetime
-from os import system, remove, getenv
-from collections import Counter
+import sys
+import cmd2
+import argparse
+from tabulate import tabulate
+from adb_libs.printit import Color as cl
+from adb_libs.printit import PrintIt as pt
+from adb_libs.adb_session import AdbSession 
+from adb_libs.cmd2_parsers import Parsers as prs
+from adb_libs.maintenance_utils import Maintenance as mt
 
+IP_RE = re.compile(r"^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)$")
+PORT_RE = re.compile(r"^(0|[1-9]{4,5})$")
+PAIR_CODE_RE = re.compile(r"^([1-9]{1}[0-9]{5})$")
 
-class Maintenance:
+class AdbRipper(cmd2.Cmd):
     
-    @staticmethod
-    def check_text(text):
-        return isinstance(text, str) and len(text) > 0
-    
-    @staticmethod
-    def check_regex(pattern, text):
-        return re.search(pattern, text) is not None
-
-    @staticmethod
-    def return_sorted_dict(d: dict):
-        return {c: v for c, v in sorted(d.items())}
-
-    @staticmethod
-    def read_c(path):
-        p = Path(path)
-        try:
-            if p.exists() and p.is_file(): 
-                return 0, p.read_text()
-        except Exception as e:
-            return 1, str(e)
-            
-    @staticmethod
-    def path_runner(path):
-        paths = []
-        p = Path(path)
-        try:
-            if p.exists() and p.is_dir():
-                for path in p.glob("*"):
-                    paths.append(path)
-            return paths
-        except Exception as e:
-            return None
-            
-    @staticmethod
-    def file_hash(path):
-        h = hashlib.md5()
-        with open(path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                h.update(chunk)
-        return h.hexdigest()
-        
-    @staticmethod
-    def get_file_type(ft):
-        file_type = ft.lower().lstrip(".")
-        type_dict = {
-            'fonts': ["otf","ttf"],
-            'package': ["zip", "7z", "tar"],
-            'exec': ["apk", "xapk", "exe"],
-            'image': ["jpg", "png", "webp", "gif", "jpeg", "svg", "heic"],
-            'text': ["txt", "csv", "dat", "log", "json", "xml"],
-            'document': ["pdf", "xlsx", "doc", "docx", "odt", "rtf"],
-            'video': ["mp4", "mkv", "avi", "mov"],
-            'audio': ["mp3", "ogg", "m4a", "opus"],
-            'script': ["sh", "py", "js", "php", "c", "cpp", "html"]
-        }
-        it = {}
-        if "," in file_type:
-            spliter = file_type.split(",")
-            for item in spliter:
-                for ty, value in type_dict.items():
-                    if item in value:
-                        it[item] = ty
-            return it
-            
-        else:
-            for ty, exts in type_dict.items():
-                if file_type in exts:
-                    return ty
-            return None
-
-    @staticmethod
-    def get_time():
-        return datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
-
-    @staticmethod
-    def formater(a_list):
-        return "|".join(fr"\.{ext}" for ext in a_list)
-
-    @staticmethod
-    def f_reader(file: Path):
-        try:
-            if file.exists() and file.is_file():
-                return file.read_text(), None
-            return None, "File not found"
-        except Exception as e:
-            return None, str(e)
-
-    @staticmethod
-    def exec_cmd(command, shell=False, timeout=60):
-        try:
-            if shell:
-                if not isinstance(command, str):
-                    raise ValueError("shell=True requer string")
-                cmd = command
-            else:
-                if isinstance(command, str):
-                    cmd = shlex.split(command)
-                else:
-                    cmd = command
-    
-            sub = run(
-                cmd,
-                shell=shell,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout
-            )
-    
-            return sub.returncode, sub.stderr, sub.stdout
-    
-        except Exception as e:
-            return 1, str(e), ""
-            
-    @staticmethod
-    def check_rm_sh():
-        c, st, sd = Maintenance.exec_cmd(
-            ["adb", "shell", "ls", "/sdcard/rm.sh"]
+    def __init__(self, no_intro=False):
+        super().__init__(
+            persistent_history_file=".adb_history",
+            persistent_history_length=1000
         )
-        return c == 0
+        self.no_intro = no_intro
+        if self.no_intro:
+            self.intro = ""
+        else:
+            self.intro = pt.banner()
+        self.prompt = f"{cl.WHITE_LINE}adbr{cl.RESET}> "
         
-    @staticmethod
-    def check_if_linux():
-        return platform.system() == "Linux"
-
-    @staticmethod
-    def check_adb():
-        check = Maintenance.check_if_linux()
-        if not check:
-           return False
-
-        code, _2, _1 = Maintenance.exec_cmd("which adb")
-        if code == 0:
-           return True
-
-        return False
-
-    @staticmethod
-    def check_devices():
-        code, _, stdout = Maintenance.exec_cmd("adb devices")
-        if code != 0:
-            return None
+    @cmd2.with_argparser(prs.sessions_parser)
+    def do_sessions(self, args):
         
-        devices = []
+        devices = mt.check_devices()
+        
+        if args.l:
+            s = mt.return_sessions()
+            if s != {}:
+                table = mt.sessions_formatter(s)
+                print(tabulate(table, headers=["Device Name","System Kernel","Arch"], tablefmt="simple_grid"))
+            else:
+                pt.fail("No valid sessions online found.")
 
-        lines = stdout.splitlines()
-        for line in lines[1:]:
-            if "\tdevice" in line:
-                devices.append(line.split("\t")[0])
+            return
 
-        return devices
-
-    @staticmethod
-    def check_paths():
-        for device in Maintenance.check_devices():
-            for path in ("adb_payloads", "adb_dumps", f"adb_dumps/{device}"):
-                Path(path).mkdir(parents=True, exist_ok=True)
-
-    @staticmethod
-    def return_sessions():
-        devices = Maintenance.check_devices()
-        sessions = {}
-        for device in devices:
-            c, st, sd = Maintenance.exec_cmd(["adb", "-s", device, "shell", "uname", "-sm"])
-            if c == 0 and sd:
-                sessions[device] = sd
-
-        return sessions
-
-    @staticmethod
-    def check_path(path: Path):
-        return path.exists()
-
-    @staticmethod
-    def check_int(integer):
-        try:
-            int(integer)
-            return True
-        except ValueError:
-            return False
-
-    @staticmethod
-    def check_key(key):
-        return Maintenance.check_int(key) and int(key) < 287 and int(key) >= 0
-
-    @staticmethod
-    def clear():
-       system("clear")
-
-    @staticmethod
-    def check_default_adbp(path: Path):
-        conditions = [
-            path.exists(),
-            path.is_file(),
-            path.suffix == ".adbp"
-        ]
-        if all(conditions):
-            count = 0
-            data = path.read_text()
-            data_splited = data.splitlines()
-            text = "adbpayload-description="
-            re_1 = re.findall(text, data)
+        elif args.K:
+            c, st, sd = mt.exec_cmd(["adb", "disconnect"])
+            if c == 0:
+                pt.success("All sessions killed")
+                return
             
-            if len(re_1) != 1:
-                return False, ""
-                
-            if len(data_splited) < 4:
-                return False, ""
-                
-            for l in data_splited:
-                if re.match(r"\d{1}", l) or re.match(r"[a-zA-Z]", l):
-                    count = 1;break
+            pt.fail("Failed to kill all adb sessions.")
+
+        elif args.L:
+            if args.L in devices:
+                SessionManager(args.L).cmdloop()
+                return
+            
+            pt.fail(f"Device '{args.L}' not found.")
+            return
+
+        elif args.k:
+            if args.k in devices:
+                c, st, sd = mt.exec_cmd(["adb", "disconnect", args.k])
+                if c == 0:
+                    pt.success(f"Device '{args.k}' disconnected.")
+                    return
                     
-            if count == 0:
-                return False, ""
-
-            for line in data_splited:
-                if line.startswith(text) and Counter(line)["="] == 1:
-                    a = line[len(text):]
-
-            try:
-                return True, a
-            except UnboundLocalError:
-                return False, ""
-
-        return False, ""
-
-    @staticmethod
-    def check_input_events(custom_path: Path):
-        status = Maintenance.check_default_adbp(custom_path)[0]
-        input_events = []
-        skip_flags = ("## File created by adb_ripper", "adbpayload-description=")
-        
-        if status:
-            data = custom_path.read_text()
-            input_events = [line for line in data.splitlines() if not line.startswith(skip_flags)]
-
-        return status, input_events
-    
-    @staticmethod
-    def list_adbp():
-        files = {}
-        path = Path("adb_payloads")
-        
-        for p in path.glob("*.adbp"):
-            desc = Maintenance.check_default_adbp(p)
-            if desc[0]:
-                files[p.name] = [p, desc[1].strip()]
+        elif args.c:
+            _ip, _port = args.c
+            if IP_RE.fullmatch(_ip) and PORT_RE.fullmatch(_port):
+                c, st, sd = mt.exec_cmd(["adb", "connect", f"{_ip}:{_port}"])
+                if c == 0 and not "failed to connect" in sd.lower():
+                    pt.success(f"Connection successfull with device IP '{_ip}'.")
+                    return
                 
-        return files
-        
-    @staticmethod
-    def simple_list_adbp():
-        files = []
-        path = Path("adb_payloads")
-        
-        for p in path.glob("*.adbp"):
-            desc = Maintenance.check_default_adbp(p)
-            if desc:
-                files.append(p.name)
+                pt.fail(f"Can't connect with device IP '{_ip}'.")
+                return
                 
-        return files
-    
-    @staticmethod
-    def payload_formatter(dictio: dict):
-        init_list = []
-        
-        for key, value in dictio.items():
-            init_list.append([key, value[1]])
-
-        return init_list
-        
-    @staticmethod
-    def sessions_formatter(dictio: dict):
-        init_list = []
-        
-        for key, value in dictio.items():
-            init_list.append([key] + [v for v in value.split()])
-
-        return init_list
-        
-    @staticmethod
-    def _generator(quantity: int):
-        if quantity > 1:
-            l = [str(random.randint(0,999)) for i in range(quantity)]
-            return l
-        elif quantity == 1:
-            l = [str(random.randint(0,286)) for i in range(1)]
-            return l
-        
-    @staticmethod
-    def _input_format(input_list: list[int]):
-        l = [str(i) for i in range(input_list)]
-        return " ".join(l)
-        
-    @staticmethod
-    def make_html(device, path, dest: Path):
-        base_html = '''<!DOCTYPE html>
-<html>
-	<head>
-		<meta name="author" content="mn7god">
-		<meta name="keywords" content="adb,pwn,android">
-		<meta name="X-UA-Compatible" content="ie=edge">
-		<title>ADB Ripper Live Screen</title>
-	</head>
-	<body>
-		<h1 style="text-align: center;">ADB Ripper Live Session: {}</h1>
-        <div style="text-align: center;">
-            <img src={} alt="ScreenCast" style="width: 100%; max-width: 800px; height: auto; display: block; margin: 0 auto;"></img>
-        </div>
-		<script>
-			setInterval(function() {}, 1000);
-		</script>
-	</body>
-</html>'''.format(device, path, "{location.reload();}")
-        if not dest.exists() and not dest.is_dir():
-            dest.write_text(base_html)
-        elif dest.exists() and dest.is_file():
-            remove(dest)
-            dest.write_text(base_html)
-    
-    @staticmethod
-    def detect_termux():
-        e = getenv("HOME")
-        if 'com.termux' in e:
-            return True
-        return False
-    
-    @staticmethod
-    def open_file(file_name):
-        mt = Maintenance
-        if mt.detect_termux():
-            mt.exec_cmd(["termux-open-url", file_name])
-        
-        mt.exec_cmd(["xdg-open", file_name])
-        
-    @staticmethod
-    def check_path_traversal(path: str):
-        black_list = ["../", "..//", "\\..", "\\..", "/..", "//.."]
-        for i in black_list:
-            if i in path:
-                return True;break
+        elif args.C:
+            _ip, _ip_port, _pair_port, _pair_code = args.C
+            condition = [
+                IP_RE.fullmatch(_ip),
+                PORT_RE.fullmatch(_ip_port),
+                PORT_RE.fullmatch(_pair_port),
+                PAIR_CODE_RE.fullmatch(_pair_code),
+            ]
+            if all(condition):
+                c, st, sd = mt.exec_cmd(["adb", "pair", f"{_ip}:{_pair_port}", _pair_code])
+                if c == 0 and not "error: protocol fault" in sd.lower():
+                    pt.success(f"Paired successfully with device IP '{_ip}'.")
+                    c1, st1, sd1 = mt.exec_cmd(["adb", "connect", f"{_ip}:{_ip_port}"])
+                    if c1 == 0 and not "failed" in sd.lower():
+                        pt.success(f"Connected successfully with device IP '{_ip}'")
+                        return
+                    
+                    pt.fail(f"Cant connect with device IP '{_ip}'.")
+                    return
                 
-    @staticmethod
-    def dangerous_strings(text: str):
-        black_list = ["&&", ";", "||", "|"]
-        for i in black_list:
-            if i in text:
-                return True;break
+                pt.fail(f"Cant pair with device IP '{_ip}'.")
+                return
+
+        pt.incorrect_usage("sessions")
+        
+    def do_banner(self, arg):
+        '''Displays a banner on the screen.'''
+        pt.banner()
+        
+class SessionManager(AdbRipper):
+    
+    def __init__(self, device: str):
+        super().__init__(no_intro=True)
+        self.device = device
+        if not self.device:
+            raise ValueError("Need an specified device.")
+        self.session = AdbSession(self.device)
+        self.prompt = f"{cl.WHITE_LINE}session{cl.RESET}:{cl.DARK_GREEN}{self.device}{cl.RESET}> "
+        mt.check_paths()
+    
+    @cmd2.with_argparser(prs.sessions2_parser)
+    def do_sessions(self, args):
+        
+        devices = mt.check_devices()
+        
+        if args.l:
+            s = mt.return_sessions()
+            if s != {}:
+                table = mt.sessions_formatter(s)
+                print(
+                    tabulate(
+                        table, 
+                        headers=["Device","System","Kernel Release","Arch"], 
+                        tablefmt="simple_grid")
+                    )
+                return
             
+            pt.fail("No valid sessions online found.")
+            return
+
+        elif args.K:
+            c, st, sd = mt.exec_cmd(["adb", "disconnect"])
+            if c == 0:
+                pt.success("All sessions killed")
+                return
+            
+            pt.fail("Failed to kill all adb sessions.");
+            return
+
+        elif args.k:
+            if args.k in devices:
+                c, st, sd = mt.exec_cmd(["adb", "disconnect", args.k])
+                if c == 0:
+                    pt.success(f"Device '{args.k}' disconnected.")
+                    return
+            
+            pt.fail(f"Device '{args.k}' not found.")
+            return
+            
+        pt.incorrect_usage("sessions")
+        
+    def do_sysinf(self, args):
+        '''Show device specifications.'''
+        self.session.sysinf()
+        
+    @cmd2.with_argparser(prs.send_key_parser)
+    def do_send_key(self, args):
+        if args.key:
+            if args.key < 287 and args.key >= 0:
+                self.session.send_key(str(args.key))
+                return
+
+        pt.incorrect_usage("send_key")
+	
+    @cmd2.with_argparser(prs.send_keys_parser)
+    def do_send_keys(self, args):
+        if args.keys:
+            self.session.multikey(args.keys)
+            return
+
+        pt.incorrect_usage("send_keys")
+    
+    @cmd2.with_argparser(prs.send_text_parser)
+    def do_send_text(self, args):
+        if args.text:
+            text = " ".join(args.text)
+            self.session.send_text(text)
+            return
+
+        pt.incorrect_usage("send_text")
+        
+    @cmd2.with_argparser(prs.search_parser)
+    def do_search(self, args):
+        
+        if args.term:
+            self.session.search(term=args.term)
+            return
+
+        pt.incorrect_usage("search")
+    
+    @cmd2.with_argparser(prs.ripper_parser)
+    def do_ripper(self, args):
+        
+        if args.l:
+            self.session.ripper("list")
+            return
+            
+        elif args.r and args.d is not None:
+            self.session.ripper(mode="run", payload=args.r, delay=args.d)
+            return
+            
+        elif args.r:
+            self.session.ripper(mode="run", payload=args.r)
+            return
+
+        pt.incorrect_usage("ripper")
+        
+    @cmd2.with_argparser(prs.clear_pkg_parser)
+    def do_clear_pkg(self, args):
+        if args.pkg:
+            self.session.clear_package(args.pkg)
+            return 
+            
+        pt.incorrect_usage("sessions")
+        
+    @cmd2.with_argparser(prs.uninstall_parser)
+    def do_uninstall(self, args):
+        if args.pkg:
+            self.session.uninstall(args.pkg)
+            return 
+            
+        pt.incorrect_usage("uninstall")
+        
+    @cmd2.with_argparser(prs.install_parser)
+    def do_install(self, args):
+        if args.apk:
+            self.session.install(args.apk)
+            return
+        
+        pt.incorrect_usage("install")
+        
+    @cmd2.with_argparser(prs.list_pkgs_parser)
+    def do_list_pkgs(self, args):
+        
+        if not args.term:
+            self.session.list_packages()
+            return
+        
+        elif args.term:
+            self.session.list_packages(term=args.term)
+            return
+            
+        pt.incorrect_usage("list_pkgs")
+    
+    @cmd2.with_argparser(prs.get_prop_parser)
+    def do_get_prop(self, args):
+
+        if not args.term:
+            self.session.getprop()
+            return
+            
+        elif args.term:
+            self.session.getprop(term=args.term)
+            return
+        
+        pt.incorrect_usage("get_prop")
+        
+    @cmd2.with_argparser(prs.start_app_parser)
+    def do_start_app(self, args):
+        if args.pkg:
+            self.session.start_app(args.pkg)
+            return
+            
+        pt.incorrect_usage("start_app")
+        
+    @cmd2.with_argparser(prs.send_parser)
+    def do_send(self, args):
+        if args.local_path and args.remote_path:
+            self.session.send(args.local_path, args.remote_path);return
+            
+        pt.incorrect_usage("send")
+        
+    @cmd2.with_argparser(prs.dump_parser)
+    def do_dump(self, args):
+        if args.remote_path and args.local_path:
+            self.session.dump(args.remote_path, args.local_path);return
+
+        pt.incorrect_usage("dump")
+        
+    def do_raw_shell(self, args):
+        '''Starts a raw shell in device.
+usage: shell'''
+        self.session.shell()
+    
+    @cmd2.with_argparser(prs.dump_sd_parser)
+    def do_dump_sd(self, args):
+        
+        if args.e and "," not in args.e:
+            _format = args.e
+            _format = f".{_format.lstrip('.')}"
+            self.session.dump_sd((_format,))
+            return
+            
+        elif args.es:
+            cleaned = []
+            for item in args.es:
+                item = item.strip().lower().lstrip(".")
+                
+                if not item or not item.isalnum():
+                    continue
+                
+                cleaned.append(f".{item}")
+        
+            if not cleaned:
+                pt.error("No valid extensions provided.")
+                return
+        
+            self.session.dump_sd(tuple(cleaned))
+            return
+
+        pt.incorrect_usage("dump_sd")
+        
+    @cmd2.with_argparser(prs.input_spam_parser)
+    def do_input_spam(self, args):
+        if args.s:
+            self.session.input_spam(mode="swipe-random")
+            return
+        
+        elif args.t:
+            self.session.input_spam(mode="tap-random")
+            return
+        
+        elif args.k:
+            self.session.input_spam(mode="keyevent-random")
+            return
+        
+        elif args.p:
+            self.session.input_spam(mode="press-spam")
+            return
+            
+        pt.incorrect_usage("input_spam")
+        
+    def do_live(self, args):
+        '''Starts a simulation of screenshare.'''
+        self.session.live()
+        
+    def do_dump_wpp(self, args):
+        '''Try dump whatsapp data from device.
+usage: dump_wpp'''
+        self.session.dump_wpp()
+        
+    @cmd2.with_argparser(prs.screenrecord_parser)
+    def do_screenrecord(self, args):
+        if args.out:
+            self.session.screenrecord(args.out);return
+            
+        pt.incorrect_usage("screenrecord")
+        
+    @cmd2.with_argparser(prs.screencap_parser)
+    def do_screencap(self, args):
+        if args.out:
+            self.session.screencap(args.out);return
+            
+        pt.incorrect_usage("screencap")
+        
+
+arg = argparse.ArgumentParser()
+arg.add_argument('-q', '--quiet', action="store_true", help="Runs without banner display.")
+args, unknown = arg.parse_known_args()
+
+sys.argv = [sys.argv[0]] + unknown
+
+if __name__ == "__main__":
+    if mt.check_adb():
+        if args.quiet:
+            AdbRipper(no_intro=True).cmdloop()
+        else:
+            AdbRipper().cmdloop()
+    
+    pt.error("Please install android-tools.")
