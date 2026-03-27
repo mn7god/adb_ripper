@@ -102,7 +102,7 @@ class AdbRipper(cmd2.Cmd):
 class SessionManager(AdbRipper):
     
     def __init__(self, device: str):
-        super().__init__(no_intro=True)
+        super().__init__()
         self.device = device
         if not self.device:
             raise ValueError("Need an specified device.")
