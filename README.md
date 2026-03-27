@@ -1,6 +1,6 @@
 ## Introduction
 
-adb_ripper is an open-source project designed to fully leverage many of ADB’s features for various purposes. Among its key functionalities are bulk file dumps by extension, executing input events with customizable payloads, listing and managing multiple connected devices, and most recently a new feature currently in testing that aims to provide a sort of improvised “screen sharing” capability for the target device. It does not use many external libraries but relies on Python being installed on the machine, the installation of dependencies listed in the ‘requirements.txt’ file using pip, and the Android Debug Tools (adb) being installed on the machine.
+adb_ripper is an simple project designed to fully leverage many of ADB’s features for various purposes. Among its key functionalities are bulk file dumps by extension, executing input events with customizable payloads, listing and managing multiple connected devices, and most recently a new feature currently in testing that aims to provide a sort of improvised “screen sharing” capability for the target device. It does not use many external libraries but relies on Python being installed on the machine, the installation of dependencies listed in the ‘requirements.txt’ file using pip, and the Android Debug Tools (adb) being installed on the machine.
 
 ## Setup
 
