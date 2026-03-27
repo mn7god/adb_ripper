@@ -8,7 +8,7 @@ from pathlib import Path
 from tabulate import tabulate
 from .printit import Color as cl
 from .printit import PrintIt as pt
-from .maintent_utils import Maintenance as mt
+from .maintenance_utils import Maintenance as mt
 from concurrent.futures import ThreadPoolExecutor
 
 PKG_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$")
@@ -453,8 +453,8 @@ class AdbSession:
     def dump_wpp(self):
         files = []
         
-        r = pt.yes_no("'dump_wpp' will made a massive adb server requests, do you want continue anyway?")
-        if r.lower().strip() in ("yes", "yy", "y"):
+        r = pt.yes_no("'dump_wpp' will make a massive adb server requests, do you want continue anyway?")
+        if r:
             try:
                 if not self.check_wpp_path():
                     pt.fail("WhatsApp media path not accessible.")
