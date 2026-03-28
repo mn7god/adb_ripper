@@ -17,7 +17,7 @@ class AdbRipper(cmd2.Cmd):
     
     def __init__(self, no_intro=False):
         super().__init__(
-            persistent_history_file=".adb_history",
+            persistent_history_file='.adb_history',
             persistent_history_length=1000
         )
         self.no_intro = no_intro
@@ -32,7 +32,7 @@ class AdbRipper(cmd2.Cmd):
         
         devices = mt.check_devices()
         
-        if args.l:
+        if args.list:
             s = mt.return_sessions()
             if s != {}:
                 table = mt.sessions_formatter(s)
@@ -42,7 +42,7 @@ class AdbRipper(cmd2.Cmd):
 
             return
 
-        elif args.K:
+        elif args.kill_all:
             c, st, sd = mt.exec_cmd(["adb", "disconnect"])
             if c == 0:
                 pt.success("All sessions killed")
@@ -50,23 +50,23 @@ class AdbRipper(cmd2.Cmd):
             
             pt.fail("Failed to kill all adb sessions.")
 
-        elif args.L:
-            if args.L in devices:
-                SessionManager(args.L).cmdloop()
+        elif args.login:
+            if args.login in devices:
+                SessionManager(args.login).cmdloop()
                 return
             
-            pt.fail(f"Device '{args.L}' not found.")
+            pt.fail(f"Device '{args.login}' not found.")
             return
 
-        elif args.k:
-            if args.k in devices:
-                c, st, sd = mt.exec_cmd(["adb", "disconnect", args.k])
+        elif args.kill:
+            if args.kill in devices:
+                c, st, sd = mt.exec_cmd(["adb", "disconnect", args.kill])
                 if c == 0:
                     pt.success(f"Device '{args.k}' disconnected.")
                     return
                     
-        elif args.c:
-            _ip, _port = args.c
+        elif args.connect:
+            _ip, _port = args.connect
             if IP_RE.fullmatch(_ip) and PORT_RE.fullmatch(_port):
                 c, st, sd = mt.exec_cmd(["adb", "connect", f"{_ip}:{_port}"])
                 if c == 0 and not "failed to connect" in sd.lower():
@@ -76,8 +76,8 @@ class AdbRipper(cmd2.Cmd):
                 pt.fail(f"Can't connect with device IP '{_ip}'.")
                 return
                 
-        elif args.C:
-            _ip, _ip_port, _pair_port, _pair_code = args.C
+        elif args.pair_connect:
+            _ip, _ip_port, _pair_port, _pair_code = args.pair_connect
             condition = [
                 IP_RE.fullmatch(_ip),
                 PORT_RE.fullmatch(_ip_port),
@@ -121,7 +121,7 @@ class SessionManager(AdbRipper):
         
         devices = mt.check_devices()
         
-        if args.l:
+        if args.list:
             s = mt.return_sessions()
             if s != {}:
                 table = mt.sessions_formatter(s)
@@ -136,7 +136,7 @@ class SessionManager(AdbRipper):
             pt.fail("No valid sessions online found.")
             return
 
-        elif args.K:
+        elif args.kill_all:
             c, st, sd = mt.exec_cmd(["adb", "disconnect"])
             if c == 0:
                 pt.success("All sessions killed")
@@ -145,9 +145,9 @@ class SessionManager(AdbRipper):
             pt.fail("Failed to kill all adb sessions.");
             return
 
-        elif args.k:
-            if args.k in devices:
-                c, st, sd = mt.exec_cmd(["adb", "disconnect", args.k])
+        elif args.kill:
+            if args.kill in devices:
+                c, st, sd = mt.exec_cmd(["adb", "disconnect", args.kill])
                 if c == 0:
                     pt.success(f"Device '{args.k}' disconnected.")
                     return
@@ -320,19 +320,19 @@ usage: shell'''
         
     @cmd2.with_argparser(prs.input_spam_parser)
     def do_input_spam(self, args):
-        if args.s:
+        if args.swipe:
             self.session.input_spam(mode="swipe-random")
             return
         
-        elif args.t:
+        elif args.tap:
             self.session.input_spam(mode="tap-random")
             return
         
-        elif args.k:
+        elif args.key:
             self.session.input_spam(mode="keyevent-random")
             return
         
-        elif args.p:
+        elif args.press:
             self.session.input_spam(mode="press-spam")
             return
             
@@ -361,7 +361,39 @@ usage: dump_wpp'''
             
         pt.incorrect_usage("screencap")
         
-
+    @cmd2.with_argparser(prs.open_url_parser)
+    def do_open_url(self, args):
+        if args.url:
+            self.session.open_url(args.url);return
+            
+        pt.incorrect_usage("open_url")
+        
+    @cmd2.with_argparser(prs.force_stop_parser)
+    def do_force_stop(self, args):
+        if args.pkg:
+            self.session.force_stop(args.pkg);return
+            
+        pt.incorrect_usage("force_stop")
+        
+    @cmd2.with_argparser(prs.force_stop_spam_parser)
+    def do_force_stop_spam(self, args):
+        if args.pkgs:
+            self.session.force_stop_spam(args.pkgs);return
+            
+        pt.incorrect_usage("force_stop_spam")
+        
+    def do_cmd(self, args):
+        '''Control many events in device using 'cmd' command.
+usage: cmd <FLAGS, SUB_COMMANDS>'''
+        arg = args.split()
+        if arg:
+            self.session.cmd(arg);return
+            
+        pt.incorrect_usage("cmd")
+        
+    def do_current_app(self, args):        
+        self.session.current_app()        
+    
 arg = argparse.ArgumentParser()
 arg.add_argument('-q', '--quiet', action="store_true", help="Runs without banner display.")
 args, unknown = arg.parse_known_args()
