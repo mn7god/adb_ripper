@@ -1,10 +1,9 @@
 import re
 import shlex
-import shutil
-import random
 import subprocess
 from time import sleep
 from pathlib import Path
+from itertools import cycle
 from tabulate import tabulate
 from .printit import Color as cl
 from .printit import PrintIt as pt
@@ -14,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 PKG_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$")
 SWIPE_RE = re.compile(r"(?:0|[1-9]\d{0,3}) (?:0|[1-9]\d{0,3}) (?:0|[1-9]\d{0,3}) (?:0|[1-9]\d{0,3})")
 TAP_RE = re.compile(r"(?:0|[1-9]\d{0,3}) (?:0|[1-9]\d{0,3})")
+URL_RE = re.compile(r'^(https?://)?([a-zA-Z0-9.-]+|\d{1,3}(\.\d{1,3}){3})(:\d+)?(/[^\s]*)?$')
 
 class AdbSession:
     def __init__(self, device: str):
@@ -85,7 +85,7 @@ class AdbSession:
             if c == 0:
                 pt.success(f"Key event '{key}' was sent to device '{self.device}'.");return
             
-        elif key == "" and not key.isdigit():
+        elif key == "":
             c, st, sd = self._run(["shell", "input", "press"])
             if c == 0:
                 pt.success(f"Press event was sent to device '{self.device}'.");return
@@ -99,56 +99,6 @@ class AdbSession:
         for item in keys:
             self.send_key(item)
             
-    def input_spam(self, mode=None, custom=None, delay=0.01):
-        
-        r = pt.yes_no("'input_spam' will make massive sends of key inputs in device, do you want to proceed anyway?")
-        
-        if r:
-            if mode == "swipe-random":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while 1 != 0:
-                    try:
-                        r = mt._generator(4)
-                        self.send_key(" ".join(r))
-                        sleep(delay)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-                    
-            elif mode == "tap-random":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while 1 != 0:
-                    try:
-                        r = mt._generator(2)
-                        self.send_key(" ".join(r))
-                        sleep(delay)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-            
-            elif mode == "keyevent-random":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while 1 != 0:
-                    try:
-                        r = mt._generator(1)
-                        self.send_key(" ".join(r))
-                        sleep(delay)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-            
-            elif mode == "press-spam":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while 1 != 0:
-                    try:
-                        self.send_key("")
-                        sleep(delay)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-                        
-            else:
-                pt.fail("Unknown mode")
-                
-        else:
-            pt.fail("User aborted.")
-
     def search(self, term: str):
         if "*" not in term and "?" not in term:
             term = f"*{term}*"
@@ -259,9 +209,109 @@ class AdbSession:
             
             else:
                 pt.fail("User aborted.")
+                
+    def force_stop(self, pkg: str):
+        if PKG_RE.match(pkg):
+            c, st, sd = self._run(["shell","am","force-stop",pkg])
+            if c == 0:
+                pt.success(f"Package '{pkg}' stoped.");return
+                
+            pt.fail(f"Failed to stoped '{pkg}' from device '{self.device}'.")
+        
+    def force_stop_spam(self, pkgs: list):
+        r = pt.yes_no("'force_stop_spam' will kill any process repeatedly, do you want continue?")
+        if r:
+            input("Press ENTER to start attack, CTRL + C to stop.")
+            try:
+                for pkg in cycle(pkgs):
+                    if PKG_RE.match(pkg):
+                        c, st, sd = self._run(["shell","am","force-stop",pkg])
+                        if c == 0:
+                            pt.success(f"Package '{pkg}' stoped.")
+                        else:
+                            pt.fail(f"Failed to stop '{pkg}' from device '{self.device}'.")
+                            
+            except KeyboardInterrupt:
+                pt.error("KeyboardInterrupt")
+        else:
+            pt.error("User aborted.")
+            
+    def current_app(self):
+        c, st, sd = self._run(["shell","dumpsys","window","windows"])
+        if c == 0 and sd:
+            for line in sd.splitlines():
+                if "mFocusedApp" in line or "mCurrentFocus" in line:
+                    splited = line.split(" ")[-1].replace("}", "").split("/")
+                    if len(splited) == 2:
+                        pt.success(f"Current package name: {splited[0]}")
+                        pt.success(f"Current package main: {splited[1]}")
+            return
+                
+        pt.fail(f"Failed to get current app '{self.device}'.")
+        
+    def open_url(self, url: str):
+        if URL_RE.fullmatch(url):
+            c, st, sd = self._run(["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d",url])
+            if c == 0:
+                pt.success(f"Started URL '{url}' in '{self.device}'.")
+                return
+                
+            pt.fail(f"Failed to open '{url}' on device '{self.device}'.")
+        else:
+            pt.error("Invalid URL.")
+            
+    def input_spam(self, mode=None, custom=None, delay=0.01):
+        
+        r = pt.yes_no("'input_spam' will make massive sends of key inputs in device, do you want to proceed anyway?")
+        
+        if r:
+            if mode == "swipe-random":
+                input("Press ENTER to start spam, use CTRL + C to stop.")
+                while 1 != 0:
+                    try:
+                        r = mt._generator(4)
+                        self.send_key(" ".join(r))
+                        sleep(delay)
+                    except KeyboardInterrupt:
+                        pt.proc("Spam stoped");break
+                    
+            elif mode == "tap-random":
+                input("Press ENTER to start spam, use CTRL + C to stop.")
+                while 1 != 0:
+                    try:
+                        r = mt._generator(2)
+                        self.send_key(" ".join(r))
+                        sleep(delay)
+                    except KeyboardInterrupt:
+                        pt.proc("Spam stoped");break
+            
+            elif mode == "keyevent-random":
+                input("Press ENTER to start spam, use CTRL + C to stop.")
+                while 1 != 0:
+                    try:
+                        r = mt._generator(1)
+                        self.send_key(" ".join(r))
+                        sleep(delay)
+                    except KeyboardInterrupt:
+                        pt.proc("Spam stoped");break
+            
+            elif mode == "press-spam":
+                input("Press ENTER to start spam, use CTRL + C to stop.")
+                while 1 != 0:
+                    try:
+                        self.send_key("")
+                        sleep(delay)
+                    except KeyboardInterrupt:
+                        pt.proc("Spam stoped");break
+                        
+            else:
+                pt.fail("Unknown mode")
+                
+        else:
+            pt.fail("User aborted.")
 
     def install(self, apk: str):
-        if apk.endswith(".apk") and Path(str(apk)).exists:
+        if apk.endswith(".apk") and Path(str(apk)).exists():
             
             c, st, sd = self._run(["install", apk])
             if c == 0:
@@ -325,18 +375,29 @@ class AdbSession:
 
     def start_app(self, pkg: str):
         if PKG_RE.match(pkg):
-            c, st, sd = self._run(["shell", "cmd", "package", "resolve-activity", "--brief", pkg])
+            c, st, sd = self._run(["shell", "monkey", "-p", pkg, "1"])
             if c == 0 and sd:
-                activity = sd.splitlines()[-1]
-                c1, st1, sd1 = self._run(["shell", "am", "start", "-n", activity])
-                if c1 == 0 and sd1:
-                    pt.success(f"Started package '{pkg}' on '{self.device}'.");return
+                pt.success(f"Started package '{pkg}' on '{self.device}'.");return
 
-                pt.fail(f"Cant start package '{pkg}' on '{self.device}'.");return
-
-            pt.fail(f"Cant find >MAIN< block in package '{pkg}' on device '{self.device}';");return
+            pt.fail(f"Cant start package '{pkg}' on '{self.device}'.");return
 
         pt.fail(f"Failed to find package '{pkg}' in devices '{self.device}'.")
+        
+    def cmd(self, command: list):
+        c, st, sd = self._run(["shell", "cmd"] + command)
+        
+        output = ""
+        if sd:
+            output += sd
+        if st:
+            output += st
+            
+        if c == 0:
+            pt.success(f"Command '{command}' executed in device '{self.device}':\n{output}");return
+        elif c != 0:
+            pt.fail(f"Command '{command}' cant be executed in device '{self.device}': {output}");return
+            
+        pt.fail(f"Failed to execute 'cmd' command '{command}' in device '{self.device}'.")
         
     def screenrecord(self, remote: str):
         dest = f"adb_dumps/{self.device}/video"
@@ -376,7 +437,7 @@ class AdbSession:
         remote = "/sdcard/screencast.png"
         while 1 != 0:
             try:
-                c, st, sd = self._run(["shell", "screencap", remote])
+                c, st, sd = self._run(["exec-out", "screencap", "-p"])
                 if c == 0:
                     pt.success("Screnshot taken.")
                     self.dump(remote, dest)
