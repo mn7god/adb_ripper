@@ -15,12 +15,12 @@ python3 adb_ripper.py
 ```
 
 ## OBS:
-```bf
+
 Some commands may not work on very old versions of Android;
 these include: list_notifications, send_msg, and send_msg_spam.
 
 This script has been tested on Android versions 9, 13, and 16.
-```
+
 ## DISCLAIMER:
 
 This project heavily relies on ADB (Android Debug Bridge), a command-line tool distributed as part of the Android SDK by Google LLC.
