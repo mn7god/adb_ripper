@@ -15,8 +15,10 @@ python3 adb_ripper.py
 ```
 
 ## OBS:
-```ruby
-Some commands may not work on very old versions of Android; these include: list_notifications, send_msg, and send_msg_spam.
+```bf
+Some commands may not work on very old versions of Android;
+these include: list_notifications, send_msg, and send_msg_spam.
+
 This script has been tested on Android versions 9, 13, and 16.
 ```
 ## DISCLAIMER:
