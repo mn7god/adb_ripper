@@ -169,7 +169,7 @@ class SessionManager(AdbRipper):
                 return
 
         pt.incorrect_usage("send_key")
-	
+    
     @cmd2.with_argparser(prs.send_keys_parser)
     def do_send_keys(self, args):
         if args.keys:
@@ -338,6 +338,22 @@ usage: shell'''
             
         pt.incorrect_usage("input_spam")
         
+    @cmd2.with_argparser(prs.display_spam_parser)
+    def do_display_spam(self, args):
+        if args.brightness:
+            self.session.display_spam(mode="bri")
+            return
+        
+        elif args.battery:
+            self.session.display_spam(mode="bat")
+            return
+        
+        elif args.uimode:
+            self.session.display_spam(mode="ui")
+            return
+            
+        pt.incorrect_usage("display_spam")
+        
     def do_live(self, args):
         '''Starts a simulation of screenshare.'''
         self.session.live()
@@ -391,9 +407,49 @@ usage: cmd <FLAGS, SUB_COMMANDS>'''
             
         pt.incorrect_usage("cmd")
         
-    def do_current_app(self, args):        
-        self.session.current_app()        
+    def do_battery(self, args):
+        '''Manage battery stats.
+usage: battery <FLAGS, SUB_COMMANDS>'''
+        arg = args.split()
+        if arg:
+            self.session.battery(arg);return
+            
+        pt.incorrect_usage("battery")
+        
+    def do_display(self, args):
+        '''Manage device display.
+usage: display <FLAGS, SUB_COMMANDS>'''
+        arg = args.split()
+        if arg:
+            self.session.display(arg);return
+            
+        pt.incorrect_usage("battery")
     
+    @cmd2.with_argparser(prs.send_msg_parser)
+    def do_send_msg(self, args):
+        if args.msg:
+            self.session.send_msg(" ".join(args.msg));return
+            
+        pt.incorrect_usage("send_msg")
+        
+    @cmd2.with_argparser(prs.send_msg_spam_parser)
+    def do_send_msg_spam(self, args):
+        if args.message:
+            self.session.send_msg_spam(msg=" ".join(args.message));return
+        
+        elif args.random:
+            self.session.send_msg_spam();return
+            
+        pt.incorrect_usage("send_msg")
+        
+    def do_list_notifications(self, args):   
+        '''Try get device notifications.'''     
+        self.session.list_notifications()
+        
+    def do_current_app(self, args):   
+        '''Try get current app in device screen.'''     
+        self.session.current_app()
+        
 arg = argparse.ArgumentParser()
 arg.add_argument('-q', '--quiet', action="store_true", help="Runs without banner display.")
 args, unknown = arg.parse_known_args()
