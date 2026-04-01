@@ -63,7 +63,7 @@ class Parsers:
 	list_pkgs_parser = argparse.ArgumentParser(description="List all packages found in device.")
 	list_pkgs_parser.add_argument('term', nargs="?", metavar=("TERM"), help="Accepts a optional term to filter.")
 	
-	input_spam_parser = argparse.ArgumentParser("Spam random or fixed key events until users stops.")
+	input_spam_parser = argparse.ArgumentParser("Spam random input events until users stops.")
 	input_spam_group = input_spam_parser.add_mutually_exclusive_group()
 	input_spam_group.add_argument("-s", '--swipe', action="store_true", help="Sends random swipes coordinates to device.")
 	input_spam_group.add_argument("-t", '--tap', action="store_true", help="Sends random taps coordinates to device.")
@@ -100,3 +100,17 @@ class Parsers:
 	
 	open_url_parser = argparse.ArgumentParser(description="Open and URL in default device browser.")
 	open_url_parser.add_argument('url', metavar=('URL'), help="Target URL.")
+	
+	send_msg_parser = argparse.ArgumentParser(description="Sends a message to device.")
+	send_msg_parser.add_argument('msg', nargs='+', metavar=('MESSAGE'), type=str, help="Message to send.")
+	
+	send_msg_spam_parser = argparse.ArgumentParser(description="Sends massive messages to device.")
+	send_msg_spam_group = send_msg_spam_parser.add_mutually_exclusive_group()
+	send_msg_spam_group.add_argument('-m', '--message', nargs='+', metavar=('MESSAGE'), type=str, help="Message to send.")
+	send_msg_spam_group.add_argument('-r', '--random', action="store_true", help="Random messages.")
+	
+	display_spam_parser = argparse.ArgumentParser("Spam random display events to device.")
+	display_spam_group = display_spam_parser.add_mutually_exclusive_group()
+	display_spam_group.add_argument("-b", '--brightness', action="store_true", help="Sends random brightness values to device.")
+	display_spam_group.add_argument("-B", '--battery', action="store_true", help="Sends random battery values to device.")
+	display_spam_group.add_argument("-u", '--uimode', action="store_true", help="Switches UIMODE repeatedly.")
