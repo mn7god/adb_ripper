@@ -1,6 +1,7 @@
 import re
 import shlex
 import shutil
+import string
 import random
 import hashlib
 import platform
@@ -313,21 +314,21 @@ class Maintenance:
     def make_html(device, path, dest: Path):
         base_html = '''<!DOCTYPE html>
 <html>
-	<head>
-		<meta name="author" content="mn7god">
-		<meta name="keywords" content="adb,pwn,android">
-		<meta name="X-UA-Compatible" content="ie=edge">
-		<title>ADB Ripper Live Screen</title>
-	</head>
-	<body>
-		<h1 style="text-align: center;">ADB Ripper Live Session: {}</h1>
+    <head>
+        <meta name="author" content="mn7god">
+        <meta name="keywords" content="adb,pwn,android">
+        <meta name="X-UA-Compatible" content="ie=edge">
+        <title>ADB Ripper Live Screen</title>
+    </head>
+    <body>
+        <h1 style="text-align: center;">ADB Ripper Live Session: {}</h1>
         <div style="text-align: center;">
             <img src={} alt="ScreenCast" style="width: 100%; max-width: 800px; height: auto; display: block; margin: 0 auto;"></img>
         </div>
-		<script>
-			setInterval(function() {}, 1000);
-		</script>
-	</body>
+        <script>
+            setInterval(function() {}, 1000);
+        </script>
+    </body>
 </html>'''.format(device, path, "{location.reload();}")
         if not dest.exists() and not dest.is_dir():
             dest.write_text(base_html)
@@ -337,10 +338,8 @@ class Maintenance:
     
     @staticmethod
     def detect_termux():
-        e = getenv("HOME")
-        if 'com.termux' in e:
-            return True
-        return False
+        e = getenv("PREFIX")
+        return 'com.termux' in e
     
     @staticmethod
     def open_file(file_name):
@@ -363,4 +362,31 @@ class Maintenance:
         for i in black_list:
             if i in text:
                 return True;break
+                
+    @staticmethod
+    def get_random_string(length=None):
+        d = string.digits
+        l = string.ascii_lowercase
+        u = string.ascii_uppercase
+        
+        full = "".join([d,l,u])
+        
+        final_string = ""
+        
+        if not length:
+            length = random.randint(4,16)
+            
+        for i in range(length):
+            final_string += random.choice(full)
+            
+        return final_string
+        
+    @staticmethod
+    def get_random_brightness_value():
+        return random.uniform(0,0.7)
+        
+    @staticmethod
+    def get_random_battery_value():
+        return random.randint(0,100000000)
+        
             
