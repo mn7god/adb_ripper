@@ -339,7 +339,11 @@ class Maintenance:
     @staticmethod
     def detect_termux():
         e = getenv("PREFIX")
-        return 'com.termux' in e
+        if e != None:
+            if'com.termux' in e:
+                return True
+        
+        return False
     
     @staticmethod
     def open_file(file_name):

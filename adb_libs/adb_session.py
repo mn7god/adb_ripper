@@ -226,8 +226,7 @@ class AdbSession:
         pt.fail(f"Failed to send message '{text}' to device '{self.device}'.")
 
     def send_msg_spam(self, msg=None):
-        r = pt.yes_no("'send_msg_spam' will send a massive volumn of messages to device, do you want continue?")
-        if r and msg:
+        if msg != None:
             try:
                 input("Press ENTER to start attack, CTRL + C to stop.")
                 while True:
@@ -239,9 +238,8 @@ class AdbSession:
                         pt.fail(f"Failed to send message '{msg}' to device '{self.device}'.")
 
             except KeyboardInterrupt:
-                pt.error("KeyboardInterrupt")
-
-        if r and msg == None:
+                pt.proc("Spam stoped")
+        else:
             try:
                 input("Press ENTER to start attack, CTRL + C to stop.")
                 while True:
@@ -253,8 +251,8 @@ class AdbSession:
                         pt.fail(f"Failed to send message '{msg}' to device '{self.device}'.")
 
             except KeyboardInterrupt:
-                pt.error("KeyboardInterrupt")
-
+                pt.proc("Spam stoped")
+                
     def list_notifications(self):
         c, st, sd = self._run(["shell","cmd","notification","list"])
         apps = {}
@@ -285,22 +283,18 @@ class AdbSession:
         pt.fail(f"Failed to list saved networks on device '{self.device}'.")
 
     def force_stop_spam(self, pkgs: list):
-        r = pt.yes_no("'force_stop_spam' will kill any process repeatedly, do you want continue?")
-        if r:
-            input("Press ENTER to start attack, CTRL + C to stop.")
-            try:
-                for pkg in cycle(pkgs):
-                    if PKG_RE.match(pkg):
-                        c, st, sd = self._run(["shell","am","force-stop",pkg])
-                        if c == 0:
-                            pt.success(f"Package '{pkg}' stoped.")
-                        else:
-                            pt.fail(f"Failed to stop '{pkg}' from device '{self.device}'.")
+        input("Press ENTER to start attack, CTRL + C to stop.")
+        try:
+            for pkg in cycle(pkgs):
+                if PKG_RE.match(pkg):
+                    c, st, sd = self._run(["shell","am","force-stop",pkg])
+                    if c == 0:
+                        pt.success(f"Package '{pkg}' stoped.")
+                    else:
+                        pt.fail(f"Failed to stop '{pkg}' from device '{self.device}'.")
 
-            except KeyboardInterrupt:
-                pt.error("KeyboardInterrupt")
-        else:
-            pt.error("User aborted.")
+        except KeyboardInterrupt:
+            pt.proc("Spam stoped")
 
     def current_app(self):
         c, st, sd = self._run(["shell","dumpsys","activity","activities"])
@@ -336,106 +330,124 @@ class AdbSession:
             pt.fail(f"Failed to open '{url}' on device '{self.device}'.")
         else:
             pt.error("Invalid URL.")
+            
+    def swipe_spam(self, delay=0.1):
+        while True:
+            try:
+                r = mt._generator(4)
+                self.send_key(" ".join(r))
+                sleep(delay)
+            except KeyboardInterrupt:
+                pt.proc("Spam stoped");break
+                
+    def tap_spam(self, delay=0.1):
+        while True:
+            try:
+                r = mt._generator(2)
+                self.send_key(" ".join(r))
+                sleep(delay)
+            except KeyboardInterrupt:
+                pt.proc("Spam stoped");break
+                
+    def keyevent_spam(self, delay=0.1):
+        while True:
+            try:
+                r = mt._generator(1)
+                self.send_key(" ".join(r))
+                sleep(delay)
+            except KeyboardInterrupt:
+                pt.proc("Spam stoped");break
+    
+    def press_spam(self, delay=0.1):
+        while True:
+            try:
+                self.send_key("")
+                sleep(delay)
+            except KeyboardInterrupt:
+                pt.proc("Spam stoped");break
+                
+    def brightness_spam(self):
+        while True:
+            try:
+                r = mt.get_random_brightness_value()
+                c, st, sd = self._run(["shell","cmd","display","set-brightness",f"{r}"])
+                if c == 0:
+                    pt.success(f"Brightness level '{r}' was sent to device.")
 
-    def input_spam(self, mode=None, delay=0.01):
+                sleep(1)
+            except KeyboardInterrupt:
+                pt.proc("Spam stoped");break
+                
+    def ui_spam(self, delay=0.1):
+        for i in cycle(["yes","no"]):
+            try:
+                c, st, sd = self._run(["shell","cmd","uimode","night",i])
+                if c == 0 and sd:
+                    pt.success(f"Night UIMODE '{i}' was sent to device.")
+            except KeyboardInterrupt:
+                pt.proc("Spam stoped");break
 
-        r = pt.yes_no("'input_spam' will make massive sends of key inputs to device, do you want to proceed anyway?")
-
-        if r:
-            if mode == "swipe-random":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while True:
-                    try:
-                        r = mt._generator(4)
-                        self.send_key(" ".join(r))
-                        sleep(delay)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-
-            elif mode == "tap-random":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while True:
-                    try:
-                        r = mt._generator(2)
-                        self.send_key(" ".join(r))
-                        sleep(delay)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-
-            elif mode == "keyevent-random":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while True:
-                    try:
-                        r = mt._generator(1)
-                        self.send_key(" ".join(r))
-                        sleep(delay)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-
-            elif mode == "press-spam":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while True:
-                    try:
-                        self.send_key("")
-                        sleep(delay)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-
-            else:
-                pt.fail("Unknown mode")
-
-        else:
-            pt.fail("User aborted.")
-
-    def display_spam(self, mode=None, delay=0.1):
-
-        r = pt.yes_no("'display_spam' will send massive screen events to device, do you want to proceed anyway?")
-
-        if r:
-            if mode == "bri":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while True:
-                    try:
-                        r = mt.get_random_brightness_value()
-                        c, st, sd = self._run(["shell","cmd","display","set-brightness",f"{r}"])
-                        if c == 0:
-                            pt.success(f"Brightness level '{r}' was sent to device.")
-
-                        sleep(1)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-
-            elif mode == "ui":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                for i in cycle(["yes","no"]):
-                    try:
-                        c, st, sd = self._run(["shell","cmd","uimode","night",i])
-                        if c == 0 and sd:
-                            pt.success(f"Night UIMODE '{i}' was sent to device.")
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped");break
-
-                    sleep(delay)
-
-            elif mode == "bat":
-                input("Press ENTER to start spam, use CTRL + C to stop.")
-                while True:
-                    try:
-                        r = mt.get_random_battery_value()
-                        c, st, sd = self._run(["shell","cmd","battery","set","level",f"{r}"])
-                        if c == 0:
-                            pt.success(f"Battery value '{r}' was sent to device.")
-                        sleep(1)
-                    except KeyboardInterrupt:
-                        pt.proc("Spam stoped")
-                        c1, st1, sd1 = self._run(["shell","cmd","battery","reset"])
-                        break
-
-            else:
-                pt.fail("Unknown mode")
-
-        else:
-            pt.fail("User aborted.")
+            sleep(delay)
+            
+    def battery_stats_spam(self):
+        while True:
+            try:
+                r = mt.get_random_battery_value()
+                c, st, sd = self._run(["shell","cmd","battery","set","level",f"{r}"])
+                if c == 0:
+                    pt.success(f"Battery value '{r}' was sent to device.")
+                sleep(1)
+            except KeyboardInterrupt:
+                pt.proc("Spam stoped")
+                c1, st1, sd1 = self._run(["shell","cmd","battery","reset"])
+                break
+                
+    def spam(self, mode=None, pkgs=None, msg=None):
+        mode = mode.strip()
+        
+        input_spam = {
+            "swipe-random": self.swipe_spam,
+            "tap-random": self.tap_spam,
+            "keyevent-random": self.keyevent_spam,
+            "press-spam": self.press_spam
+        }
+        
+        display_spam = {
+            "brightness": self.brightness_spam,
+            "ui": self.ui_spam,
+            "battery": self.battery_stats_spam
+        }
+        
+        force_stop_spam = {
+            "force-stop": self.force_stop_spam
+        }
+        
+        send_msg_spam = {
+            "send-msg": self.send_msg_spam
+        }
+        
+        if mode == None:
+            pt.error("Unknown Mode")
+        
+        if input_spam.get(mode) != None:
+            r = pt.yes_no("'input_spam' will send massive input events to device, do you want to proceed anyway?")
+            if r:
+                input_spam[mode]()
+                
+        elif display_spam.get(mode) != None:
+            r = pt.yes_no("'display_spam' will send massive screen events to device, do you want to proceed anyway?")
+            if r:
+                display_spam[mode]()
+                
+        elif send_msg_spam.get(mode) != None:
+            r = pt.yes_no("'send_msg_spam' will spam with a massive shell messages to device, do you want to proceed anyway?")
+            if r:
+                send_msg_spam[mode](msg)
+                
+        elif force_stop_spam.get(mode) != None and pkgs != None:
+            r = pt.yes_no("'force_stop_spam' can harm device running packages, do you want to proceed anyway?")
+            if r:
+                force_stop_spam[mode](pkgs)
 
     def install(self, apk: str):
         if apk.endswith(".apk") and Path(str(apk)).exists():
@@ -608,7 +620,7 @@ class AdbSession:
                     pt.success("Screnshot taken.")
                     self.dump(remote, dest)
 
-                #sleep(max(0, delay))
+                sleep(max(0.4, delay))
             except KeyboardInterrupt:
                 pt.proc("Live interrupted");break
 
@@ -632,7 +644,7 @@ class AdbSession:
             pt.fail("Live mode in termux isnt suported.")
         else:
             subprocess.run(["xdg-open", str(html)])
-            self.screenshot(1, png_path)
+            self.screenshot(0.4, png_path)
 
     def dump_sd(self, extensions: tuple[str], workers=2):
         c, st, sd = self._run(["shell", "find", "/sdcard/", "-type", "f"])

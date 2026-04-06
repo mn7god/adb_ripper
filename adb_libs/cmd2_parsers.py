@@ -63,13 +63,6 @@ class Parsers:
 	list_pkgs_parser = argparse.ArgumentParser(description="List all packages found in device.")
 	list_pkgs_parser.add_argument('term', nargs="?", metavar=("TERM"), help="Accepts a optional term to filter.")
 	
-	input_spam_parser = argparse.ArgumentParser("Spam random input events until users stops.")
-	input_spam_group = input_spam_parser.add_mutually_exclusive_group()
-	input_spam_group.add_argument("-s", '--swipe', action="store_true", help="Sends random swipes coordinates to device.")
-	input_spam_group.add_argument("-t", '--tap', action="store_true", help="Sends random taps coordinates to device.")
-	input_spam_group.add_argument("-k", '--key', action="store_true", help="Sends random key event codes to device.")
-	input_spam_group.add_argument("-p", '--press', action="store_true", help="Sends press event to device.")
-	
 	get_prop_parser = argparse.ArgumentParser(description="List all device properties.")
 	get_prop_parser.add_argument('term', nargs="?", metavar=("TERM"), help="Accepts a optional term to filter.")
 	
@@ -95,22 +88,16 @@ class Parsers:
 	force_stop_parser = argparse.ArgumentParser(description="Forces the termination of a package.")
 	force_stop_parser.add_argument('pkg', metavar=('PACKAGE'), help="Package to stop.")
 	
-	force_stop_spam_parser = argparse.ArgumentParser(description="Forces the termination of many packages in loop.")
-	force_stop_spam_parser.add_argument('pkgs', nargs='+', metavar=('PACKAGES'), help="Packages to stop.")
-	
 	open_url_parser = argparse.ArgumentParser(description="Open and URL in default device browser.")
 	open_url_parser.add_argument('url', metavar=('URL'), help="Target URL.")
 	
 	send_msg_parser = argparse.ArgumentParser(description="Sends a message to device.")
 	send_msg_parser.add_argument('msg', nargs='+', metavar=('MESSAGE'), type=str, help="Message to send.")
 	
-	send_msg_spam_parser = argparse.ArgumentParser(description="Sends massive messages to device.")
-	send_msg_spam_group = send_msg_spam_parser.add_mutually_exclusive_group()
-	send_msg_spam_group.add_argument('-m', '--message', nargs='+', metavar=('MESSAGE'), type=str, help="Message to send.")
-	send_msg_spam_group.add_argument('-r', '--random', action="store_true", help="Random messages.")
-	
-	display_spam_parser = argparse.ArgumentParser("Spam random display events to device.")
-	display_spam_group = display_spam_parser.add_mutually_exclusive_group()
-	display_spam_group.add_argument("-b", '--brightness', action="store_true", help="Sends random brightness values to device.")
-	display_spam_group.add_argument("-B", '--battery', action="store_true", help="Sends random battery values to device.")
-	display_spam_group.add_argument("-u", '--uimode', action="store_true", help="Switches UIMODE repeatedly.")
+	spam_parser = argparse.ArgumentParser("Spam events to device.")
+	spam_group = spam_parser.add_mutually_exclusive_group()
+	spam_group.add_argument('-i','--input', choices=["swipe-random","tap-random","keyevent-random", "press-spam"], help="Send random input events.")
+	spam_group.add_argument('-d','--display', choices=["brightness","battery","ui"], help="Send random screen events.")
+	spam_group.add_argument('-m','--random-message', action="store_true", help="Send random messages to device.")
+	spam_group.add_argument('-M','--message', nargs='+', help="Send repeatedly specified message.")
+	spam_group.add_argument('-f','--force-stop', nargs='+', help="Force stop repeatedly in one or more packages.")
