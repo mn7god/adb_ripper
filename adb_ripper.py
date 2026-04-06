@@ -10,7 +10,7 @@ from adb_libs.cmd2_parsers import Parsers as prs
 from adb_libs.maintenance_utils import Maintenance as mt
 
 IP_RE = re.compile(r"^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)$")
-PORT_RE = re.compile(r"^(0|[1-9]{4,5})$")
+PORT_RE = re.compile(r"^(\d{4,5})$")
 PAIR_CODE_RE = re.compile(r"^([1-9]{1}[0-9]{5})$")
 
 class AdbRipper(cmd2.Cmd):
@@ -27,9 +27,9 @@ class AdbRipper(cmd2.Cmd):
             self.intro = pt.banner()
         self.prompt = f"{cl.WHITE_LINE}adbr{cl.RESET}> "
         
+    @cmd2.with_category("Connection manager")
     @cmd2.with_argparser(prs.sessions_parser)
     def do_sessions(self, args):
-        
         devices = mt.check_devices()
         
         if args.list:
@@ -86,7 +86,12 @@ class AdbRipper(cmd2.Cmd):
             ]
             if all(condition):
                 c, st, sd = mt.exec_cmd(["adb", "pair", f"{_ip}:{_pair_port}", _pair_code])
-                if c == 0 and not "error: protocol fault" in sd.lower():
+                pair_block = {
+                    c == 0,
+                    "error" not in sd.lower(),
+                    "failed" not in sd.lower()
+                }
+                if all(pair_block):
                     pt.success(f"Paired successfully with device IP '{_ip}'.")
                     c1, st1, sd1 = mt.exec_cmd(["adb", "connect", f"{_ip}:{_ip_port}"])
                     if c1 == 0 and not "failed" in sd.lower():
@@ -100,7 +105,8 @@ class AdbRipper(cmd2.Cmd):
                 return
 
         pt.incorrect_usage("sessions")
-        
+    
+    @cmd2.with_category("Utils")
     def do_banner(self, arg):
         '''Displays a banner on the screen.'''
         pt.banner()
@@ -115,7 +121,8 @@ class SessionManager(AdbRipper):
         self.session = AdbSession(self.device)
         self.prompt = f"{cl.WHITE_LINE}session{cl.RESET}:{cl.DARK_GREEN}{self.device}{cl.RESET}> "
         mt.check_paths()
-    
+        
+    @cmd2.with_category("Connection manager")
     @cmd2.with_argparser(prs.sessions2_parser)
     def do_sessions(self, args):
         
@@ -156,11 +163,13 @@ class SessionManager(AdbRipper):
             return
             
         pt.incorrect_usage("sessions")
-        
+    
+    @cmd2.with_category("Dump")
     def do_sysinf(self, args):
         '''Show device specifications.'''
         self.session.sysinf()
-        
+    
+    @cmd2.with_category("Input event")
     @cmd2.with_argparser(prs.send_key_parser)
     def do_send_key(self, args):
         if args.key:
@@ -169,7 +178,8 @@ class SessionManager(AdbRipper):
                 return
 
         pt.incorrect_usage("send_key")
-	
+        
+    @cmd2.with_category("Input event")
     @cmd2.with_argparser(prs.send_keys_parser)
     def do_send_keys(self, args):
         if args.keys:
@@ -178,6 +188,7 @@ class SessionManager(AdbRipper):
 
         pt.incorrect_usage("send_keys")
     
+    @cmd2.with_category("Input event")
     @cmd2.with_argparser(prs.send_text_parser)
     def do_send_text(self, args):
         if args.text:
@@ -187,6 +198,7 @@ class SessionManager(AdbRipper):
 
         pt.incorrect_usage("send_text")
         
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.search_parser)
     def do_search(self, args):
         
@@ -196,6 +208,7 @@ class SessionManager(AdbRipper):
 
         pt.incorrect_usage("search")
     
+    @cmd2.with_category("Event executer")
     @cmd2.with_argparser(prs.ripper_parser)
     def do_ripper(self, args):
         
@@ -213,6 +226,7 @@ class SessionManager(AdbRipper):
 
         pt.incorrect_usage("ripper")
         
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.clear_pkg_parser)
     def do_clear_pkg(self, args):
         if args.pkg:
@@ -221,6 +235,7 @@ class SessionManager(AdbRipper):
             
         pt.incorrect_usage("sessions")
         
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.uninstall_parser)
     def do_uninstall(self, args):
         if args.pkg:
@@ -229,6 +244,7 @@ class SessionManager(AdbRipper):
             
         pt.incorrect_usage("uninstall")
         
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.install_parser)
     def do_install(self, args):
         if args.apk:
@@ -237,6 +253,7 @@ class SessionManager(AdbRipper):
         
         pt.incorrect_usage("install")
         
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.list_pkgs_parser)
     def do_list_pkgs(self, args):
         
@@ -250,6 +267,7 @@ class SessionManager(AdbRipper):
             
         pt.incorrect_usage("list_pkgs")
     
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.get_prop_parser)
     def do_get_prop(self, args):
 
@@ -263,6 +281,7 @@ class SessionManager(AdbRipper):
         
         pt.incorrect_usage("get_prop")
         
+    @cmd2.with_category("Event executer")
     @cmd2.with_argparser(prs.start_app_parser)
     def do_start_app(self, args):
         if args.pkg:
@@ -271,6 +290,7 @@ class SessionManager(AdbRipper):
             
         pt.incorrect_usage("start_app")
         
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.send_parser)
     def do_send(self, args):
         if args.local_path and args.remote_path:
@@ -278,18 +298,21 @@ class SessionManager(AdbRipper):
             
         pt.incorrect_usage("send")
         
+    @cmd2.with_category("Dump")
     @cmd2.with_argparser(prs.dump_parser)
     def do_dump(self, args):
         if args.remote_path and args.local_path:
             self.session.dump(args.remote_path, args.local_path);return
 
         pt.incorrect_usage("dump")
-        
+    
+    @cmd2.with_category("Utils")
     def do_raw_shell(self, args):
         '''Starts a raw shell in device.
 usage: shell'''
         self.session.shell()
     
+    @cmd2.with_category("Dump")
     @cmd2.with_argparser(prs.dump_sd_parser)
     def do_dump_sd(self, args):
         
@@ -318,35 +341,18 @@ usage: shell'''
 
         pt.incorrect_usage("dump_sd")
         
-    @cmd2.with_argparser(prs.input_spam_parser)
-    def do_input_spam(self, args):
-        if args.swipe:
-            self.session.input_spam(mode="swipe-random")
-            return
-        
-        elif args.tap:
-            self.session.input_spam(mode="tap-random")
-            return
-        
-        elif args.key:
-            self.session.input_spam(mode="keyevent-random")
-            return
-        
-        elif args.press:
-            self.session.input_spam(mode="press-spam")
-            return
-            
-        pt.incorrect_usage("input_spam")
-        
+    @cmd2.with_category("Utils")
     def do_live(self, args):
         '''Starts a simulation of screenshare.'''
         self.session.live()
-        
+    
+    @cmd2.with_category("Dump")
     def do_dump_wpp(self, args):
         '''Try dump whatsapp data from device.
 usage: dump_wpp'''
         self.session.dump_wpp()
         
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.screenrecord_parser)
     def do_screenrecord(self, args):
         if args.out:
@@ -354,6 +360,7 @@ usage: dump_wpp'''
             
         pt.incorrect_usage("screenrecord")
         
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.screencap_parser)
     def do_screencap(self, args):
         if args.out:
@@ -361,6 +368,7 @@ usage: dump_wpp'''
             
         pt.incorrect_usage("screencap")
         
+    @cmd2.with_category("Event executer")
     @cmd2.with_argparser(prs.open_url_parser)
     def do_open_url(self, args):
         if args.url:
@@ -368,6 +376,7 @@ usage: dump_wpp'''
             
         pt.incorrect_usage("open_url")
         
+    @cmd2.with_category("Event executer")
     @cmd2.with_argparser(prs.force_stop_parser)
     def do_force_stop(self, args):
         if args.pkg:
@@ -375,13 +384,7 @@ usage: dump_wpp'''
             
         pt.incorrect_usage("force_stop")
         
-    @cmd2.with_argparser(prs.force_stop_spam_parser)
-    def do_force_stop_spam(self, args):
-        if args.pkgs:
-            self.session.force_stop_spam(args.pkgs);return
-            
-        pt.incorrect_usage("force_stop_spam")
-        
+    @cmd2.with_category("Event executer")
     def do_cmd(self, args):
         '''Control many events in device using 'cmd' command.
 usage: cmd <FLAGS, SUB_COMMANDS>'''
@@ -391,9 +394,70 @@ usage: cmd <FLAGS, SUB_COMMANDS>'''
             
         pt.incorrect_usage("cmd")
         
-    def do_current_app(self, args):        
-        self.session.current_app()        
+    @cmd2.with_category("Utils")
+    def do_battery(self, args):
+        '''Manage battery stats.
+usage: battery <FLAGS, SUB_COMMANDS>'''
+        arg = args.split()
+        if arg:
+            self.session.battery(arg);return
+            
+        pt.incorrect_usage("battery")
+        
+    @cmd2.with_category("Utils")
+    def do_display(self, args):
+        '''Manage device display.
+usage: display <FLAGS, SUB_COMMANDS>'''
+        arg = args.split()
+        if arg:
+            self.session.display(arg);return
+            
+        pt.incorrect_usage("battery")
     
+    @cmd2.with_category("Utils")
+    @cmd2.with_argparser(prs.send_msg_parser)
+    def do_send_msg(self, args):
+        if args.msg:
+            self.session.send_msg(" ".join(args.msg));return
+            
+        pt.incorrect_usage("send_msg")
+    
+    @cmd2.with_category("Event executer")
+    @cmd2.with_argparser(prs.spam_parser)
+    def do_spam(self, args):
+        
+        if args.input:
+            self.session.spam(mode=args.input);return
+            
+        elif args.display:
+            self.session.spam(mode=args.display);return
+            
+        elif args.random_message:
+            self.session.spam(mode="send-msg");return
+            
+        elif args.message:
+            self.session.spam(mode="send-msg", msg=" ".join(args.message));return
+            
+        elif args.force_stop:
+            self.session.spam(mode="force-stop", pkgs=args.force_stop);return
+        
+        pt.incorrect_usage("spam")
+        
+    @cmd2.with_category("Utils")
+    def do_list_notifications(self, args):   
+        '''Try get device notifications.'''     
+        self.session.list_notifications()
+        
+    @cmd2.with_category("Utils")
+    def do_list_saved_networks(self, args):   
+        '''Try get device saved networks.'''     
+        self.session.list_saved_networks()
+        
+    @cmd2.with_category("Utils")
+    def do_current_app(self, args):   
+        '''Try get current app in device screen.'''     
+        self.session.current_app()
+        
 arg = argparse.ArgumentParser()
 arg.add_argument('-q', '--quiet', action="store_true", help="Runs without banner display.")
 args, unknown = arg.parse_known_args()
