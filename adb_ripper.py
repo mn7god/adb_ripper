@@ -212,16 +212,16 @@ class SessionManager(AdbRipper):
     @cmd2.with_argparser(prs.ripper_parser)
     def do_ripper(self, args):
         
-        if args.l:
+        if args.list:
             self.session.ripper("list")
             return
             
-        elif args.r and args.d is not None:
-            self.session.ripper(mode="run", payload=args.r, delay=args.d)
+        elif args.run and args.delay is not None:
+            self.session.ripper(mode="run", payload=args.run, delay=args.delay)
             return
             
-        elif args.r:
-            self.session.ripper(mode="run", payload=args.r)
+        elif args.run:
+            self.session.ripper(mode="run", payload=args.run)
             return
 
         pt.incorrect_usage("ripper")
@@ -281,7 +281,7 @@ class SessionManager(AdbRipper):
         
         pt.incorrect_usage("get_prop")
         
-    @cmd2.with_category("Event executer")
+    @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.start_app_parser)
     def do_start_app(self, args):
         if args.pkg:
@@ -316,15 +316,15 @@ usage: shell'''
     @cmd2.with_argparser(prs.dump_sd_parser)
     def do_dump_sd(self, args):
         
-        if args.e and "," not in args.e:
-            _format = args.e
+        if args.extension and "," not in args.extension:
+            _format = args.extension
             _format = f".{_format.lstrip('.')}"
             self.session.dump_sd((_format,))
             return
             
-        elif args.es:
+        elif args.extensions:
             cleaned = []
-            for item in args.es:
+            for item in args.extensions:
                 item = item.strip().lower().lstrip(".")
                 
                 if not item or not item.isalnum():
@@ -414,7 +414,7 @@ usage: display <FLAGS, SUB_COMMANDS>'''
             
         pt.incorrect_usage("battery")
     
-    @cmd2.with_category("Utils")
+    @cmd2.with_category("Event executer")
     @cmd2.with_argparser(prs.send_msg_parser)
     def do_send_msg(self, args):
         if args.msg:
