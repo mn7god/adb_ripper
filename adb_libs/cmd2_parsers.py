@@ -45,7 +45,7 @@ class Parsers:
 	ripper_parser = argparse.ArgumentParser(description="Send text event to input of device.")
 	ripper_group = ripper_parser.add_mutually_exclusive_group()
 	ripper_group.add_argument('-l', '--list', action="store_true", help="List all available payloads.")
-	ripper_group.add_argument('-r', '--run', metavar=("ADBP_NAME"), choices=mt.simple_list_adbp(), help="Run payload by name.")
+	ripper_group.add_argument('-r', '--run', metavar=("ADBP_NAME"), help="Run payload by name.")
 	ripper_parser.add_argument('-d', '--delay', metavar=("DELAY"), type=float, help="Custom delay for payload execution.")
 	
 	clear_pkg_parser = argparse.ArgumentParser(description="Clear a package internal data.")

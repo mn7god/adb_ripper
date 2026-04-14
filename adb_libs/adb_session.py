@@ -690,19 +690,16 @@ class AdbSession:
 
     def dump_wpp(self):
         files = []
-
         r = pt.yes_no("'dump_wpp' will make a massive adb server requests, do you want continue anyway?")
         if r:
             try:
                 if not self.check_wpp_path():
                     pt.fail("WhatsApp media path not accessible.")
                     return
-
+            
                 base = Path(f"adb_dumps/{self.device}/WhatsApp")
                 base.mkdir(parents=True, exist_ok=True)
-
                 remote_base = "/sdcard/Android/media/com.whatsapp/WhatsApp/Media/"
-
                 c, st, sd = self._run([
                     "shell", "find", remote_base, "-type", "f"
                 ])
@@ -712,15 +709,15 @@ class AdbSession:
                     return
 
                 files = [f.strip() for f in sd.splitlines()]
-
+            
                 for f in files:
                     self.dump(f, str(base))
 
             except KeyboardInterrupt:
                 pt.success(f"Dumped {len(files)} files from '{self.device}' to '{base}'.");return
-
+                
             pt.success(f"Dumped {len(files)} files from '{self.device}' to '{base}'.")
-
+            
         else:
             pt.fail("Dump whatsapp data aborted.")
 

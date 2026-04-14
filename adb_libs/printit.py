@@ -18,6 +18,7 @@ class Color:
 	GRAY_2 = "\033[2;49;39m"
 	WHITE_LINE = "\033[4;49;97m"
 	DARK_GREEN_LINE = "\033[4;49;32m"
+
 class PrintIt:
 	def banner():
 		system("clear")
@@ -59,6 +60,7 @@ class PrintIt:
 	def yes_no(msg):
 		i = input(f"[{Color.GRAY}QUESTION{Color.RESET}]: {msg}(yes/no): ")
 		return i.lower().strip() in ("yes", "yy", "y")
+
 	def incorrect_usage(cmd):
 		print(f"[{Color.RED}ERROR{Color.RESET}]: Incorrect usage of '{cmd}', use 'help {cmd}'")
 		
