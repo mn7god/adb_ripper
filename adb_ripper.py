@@ -119,7 +119,7 @@ class SessionManager(AdbRipper):
         if not self.device:
             raise ValueError("Need an specified device.")
         self.session = AdbSession(self.device)
-        self.prompt = f"{cl.WHITE_LINE}session{cl.RESET}:{cl.DARK_GREEN}{self.device}{cl.RESET}> "
+        self.prompt = f"{cl.WHITE_LINE}adbr{cl.RESET}:{cl.RED}{self.device}{cl.RESET}> "
         mt.check_paths()
         
     @cmd2.with_category("Connection manager")
@@ -212,16 +212,16 @@ class SessionManager(AdbRipper):
     @cmd2.with_argparser(prs.ripper_parser)
     def do_ripper(self, args):
         
-        if args.list:
-            self.session.ripper("list")
+        if args.list_macros:
+            self.session.ripper("list-macros")
             return
             
-        elif args.run and args.delay is not None:
-            self.session.ripper(mode="run", payload=args.run, delay=args.delay)
+        elif args.run_macro and args.delay is not None:
+            self.session.ripper(mode="run-macro", payload=args.run_macro, delay=args.delay)
             return
             
-        elif args.run:
-            self.session.ripper(mode="run", payload=args.run)
+        elif args.run_macro:
+            self.session.ripper(mode="run-macro", payload=args.run_macro)
             return
 
         pt.incorrect_usage("ripper")
@@ -289,6 +289,15 @@ class SessionManager(AdbRipper):
             return
             
         pt.incorrect_usage("start_app")
+        
+    @cmd2.with_category("Utils")
+    @cmd2.with_argparser(prs.start_app_parser)
+    def do_package_apk(self, args):
+        if args.pkg:
+            self.session.package_apk(args.pkg)
+            return
+            
+        pt.incorrect_usage("package_apk")
         
     @cmd2.with_category("Utils")
     @cmd2.with_argparser(prs.send_parser)
@@ -457,6 +466,11 @@ usage: display <FLAGS, SUB_COMMANDS>'''
     def do_current_app(self, args):   
         '''Try get current app in device screen.'''     
         self.session.current_app()
+        
+    @cmd2.with_category("Utils")
+    def do_list_open_ports(self, args):   
+        '''Try get open ports in device screen.'''     
+        self.session.open_ports()
         
 arg = argparse.ArgumentParser()
 arg.add_argument('-q', '--quiet', action="store_true", help="Runs without banner display.")
