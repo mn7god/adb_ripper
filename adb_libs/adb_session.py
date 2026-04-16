@@ -120,7 +120,7 @@ class AdbSession:
 
     def ripper(self, mode: str, payload=None, delay=2):
 
-        if mode == "list":
+        if mode == "list-macros":
             payloads = mt.list_adbp()
             if payloads != {}:
                 _payload_format = mt.payload_formatter(payloads)
@@ -128,7 +128,7 @@ class AdbSession:
 
             pt.fail("None payloads found in 'adb_payloads' path.")
 
-        elif mode == "run" and isinstance(payload, str):
+        elif mode == "run-macro" and isinstance(payload, str):
             adbp_list = mt.list_adbp()
             keys = adbp_list.keys()
             delay = delay if delay < 60 and delay > -1 else 2
@@ -158,7 +158,15 @@ class AdbSession:
 
             else:
                 pt.fail("User aborted.")
-
+                
+    def package_apk(self, pkg: str):
+        if PKG_RE.match(pkg):
+            c, st, sd = self._run(["shell", "pm", "path", pkg])
+            if c == 0:
+                pt.success(f"Package '{pkg}' apk: {sd.split(':')[-1]}\r");return
+                
+        pt.fail(f"Failed to get package '{pkg}' apk.")  
+            
     def send(self, local: str, remote: str):
         src = Path(local)
 
@@ -281,6 +289,14 @@ class AdbSession:
             return
 
         pt.fail(f"Failed to list saved networks on device '{self.device}'.")
+        
+    def open_ports(self):
+        c, st, sd = self._run(["shell","netstat","-an"])
+        if c == 0 and sd:
+            pt.success(f"\n{sd}")
+            return
+
+        pt.fail(f"Failed to list open ports on device '{self.device}'.")
 
     def force_stop_spam(self, pkgs: list):
         input("Press ENTER to start attack, CTRL + C to stop.")
@@ -620,7 +636,7 @@ class AdbSession:
                     pt.success("Screnshot taken.")
                     self.dump(remote, dest)
 
-                sleep(max(0.4, delay))
+                sleep(max(0.2, delay))
             except KeyboardInterrupt:
                 pt.proc("Live interrupted");break
 
@@ -644,7 +660,7 @@ class AdbSession:
             pt.fail("Live mode in termux isnt suported.")
         else:
             subprocess.run(["xdg-open", str(html)])
-            self.screenshot(0.4, png_path)
+            self.screenshot(0.2, png_path)
 
     def dump_sd(self, extensions: tuple[str], workers=2):
         c, st, sd = self._run(["shell", "find", "/sdcard/", "-type", "f"])
