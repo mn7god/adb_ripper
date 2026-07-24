@@ -1,6 +1,6 @@
 The ‘ripper’ command is both simple and interesting
 
-If you use the ‘ripper -h’ command, you'll see that there are two types of resources for execution
+If you use the ‘ripper -h’ command, you'll see that there are two types of resources for listings and execution
 
 1 - Macros
 2 - Modules
