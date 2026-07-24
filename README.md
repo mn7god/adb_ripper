@@ -34,7 +34,7 @@ python3 adb_ripper.py
 
 ## ADB Functions List:
 
-#♦
+# ♦
 
 
 
