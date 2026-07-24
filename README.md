@@ -80,6 +80,7 @@ python3 adb_ripper.py
 ➤ list_pkgs - Lists all apps on device with string filters
 
 ➤ list_processes - Lists all processes on device with string filters
+
 ➤ live - Try improve a low complexity sharescreen with screenshots and html
 
 ➤ notifspy - Monitorates notification bar until the custom package appears in device and show current app on screen
