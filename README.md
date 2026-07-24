@@ -55,6 +55,8 @@ python3 adb_ripper.py
 
 ➤ send_msg - Sends any notification with you custom text
 
+➤ spam - Sends some type of events spam to device
+
 ➤ send_key - Sends one key event to device
 
 ➤ send_keys - Sends multiple sequential key events to device
@@ -100,6 +102,6 @@ python3 adb_ripper.py
 # PS:
 
 Some commands may not work on very old versions of Android;
-these include: list_notifications, send_msg, and send_msg_spam.
+these include: list_notifications, send_msg, and some of spam functions.
 
 This script has been tested on Android versions 9, 13, and 16.
