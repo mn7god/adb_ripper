@@ -1,5 +1,6 @@
 import re
 import shlex
+import shutil
 import subprocess
 from time import sleep
 from pathlib import Path
@@ -53,10 +54,126 @@ class AdbSession:
                     sys_infos['Charging'] = line_value
                 elif "level:" in line_s:
                     sys_infos['Battery Level'] = line_value
-
-        for key, value in mt.return_sorted_dict(sys_infos).items():
-            print(f"""{cl.GREEN}{key}{cl.RESET}: '{value.strip().replace("'","")}'""")
-
+                    
+        if sys_infos != {}:
+            for key, value in mt.return_sorted_dict(sys_infos).items():
+                print(f"""{cl.GREEN}{key}{cl.RESET}: {value.strip().replace("'","")}""")
+                
+            return
+            
+        pt.fail("Failed to get basic system informations.")
+            
+    def list_user_apks(self):
+        c, st, sd = self._run(["shell", "pm", "list", "packages", "-3"])
+        if c == 0 and sd:
+            apks = []
+            for pkg in sd.splitlines():
+                splited_line = pkg.split(":")[-1]
+                c1, st1, sd1 = self._run(["shell", "pm", "path", splited_line])
+                if c1 == 0 and sd1:
+                    apks.append([splited_line, sd1.split(":")[-1]])
+            
+            if apks != []:
+                for items in apks:
+                    print(f"Package: {cl.YELLOW}{items[0]}{cl.RESET} APK: {cl.GREEN}{items[1]}{cl.RESET}\r")
+                    sleep(0.04)
+                
+            return
+            
+        pt.fail("Failed to get user apks.")
+            
+    def list_system_apks(self):
+        c, st, sd = self._run(["shell", "pm", "list", "packages", "-s"])
+        if c == 0 and sd:
+            apks = []
+            for pkg in sd.splitlines():
+                splited_line = pkg.split(":")[-1]
+                c1, st1, sd1 = self._run(["shell", "pm", "path", splited_line])
+                if c1 == 0 and sd1:
+                    apks.append([splited_line, sd1.split(":")[-1]])
+                    
+            if apks != []:
+                for items in apks:
+                    print(f"Package: {cl.YELLOW}{items[0]}{cl.RESET} APK: {cl.GREEN}{items[1]}{cl.RESET}\r")
+                    sleep(0.04)
+            return
+            
+        pt.fail("Failed to get system apks.")
+        
+    def sysprops(self):
+        c, st, sd = self._run(["shell", "settings", "list", "system"])
+        c1, st1, sd1 = self._run(["shell", "settings", "list", "secure"])
+        c2, st2, sd2 = self._run(["shell", "settings", "list", "global"])
+        condition = [
+            c == 0,
+            c1 == 0,
+            c2 == 0,
+            sd != None,
+            sd1 != None,
+            sd2 != None
+        ]
+        if all(condition):
+            settings = sd + sd1 + sd2
+            for setting in settings.splitlines():
+                print(setting+"\n")
+                sleep(0.001)
+            return
+                
+        pt.fail("Failed to get system propierties.")
+            
+    def process_list(self, term=None):
+        if term == None:
+            c, st, sd = self._run(["shell", "ps"])
+            if c == 0 and sd:
+                processes = []
+                for line in sd.splitlines():
+                    splited_line = line.split()
+                    processes.append([splited_line[0], splited_line[1], splited_line[-1]])
+                    
+                if processes != []:
+                    print(tabulate(processes, headers=["User", "PID", "Service"], tablefmt='simple_grid'))
+                    return
+                
+        if mt.dangerous_strings(term):
+            pt.error("Dangerous strings detected.");return
+                
+        c1, st1, sd1 = self._run(["shell", "ps"])
+        if c1 == 0 and sd1:
+            processes = []
+            for line in sd1.splitlines():
+                splited_line = line.split()
+                if term.strip() in line:
+                    processes.append([splited_line[0], splited_line[1], splited_line[-1]])
+                    
+            if processes != []:
+                print(tabulate(processes, headers=["User", "PID", "Service"], tablefmt='simple_grid'))
+                return
+            
+        pt.fail("ADB fail in process listing.")
+        
+    def dump_permissions(self, pkg: str):
+        if PKG_RE.fullmatch(pkg):
+            c, st, sd = self._run(["shell", "dumpsys", "package", pkg])
+            if c == 0 and sd:
+                permissions = []
+                for line in sd.splitlines():
+                    conditions = [
+                        "android" in line and "permission" in line,
+                        "google" in line and "permission" in line,
+                    ]
+                    if conditions[0] or conditions[1]:
+                        if "granted=true" in line or "granted=false" in line:
+                            permissions.append(f"{pkg}:{line.strip()}")
+                
+                if permissions != []:
+                    pt.success("")
+                    for item in permissions:
+                        print(item+"\n")
+                        
+                return
+                
+        pt.fail(f"Failed to get package '{pkg}' permissions.")
+            
     def send_text(self, text: str):
         _formated = text.replace(" ", "%s").replace("\t", "%s")
 
@@ -109,9 +226,9 @@ class AdbSession:
         c, st, sd = self._run(["shell", "find", "/sdcard/", "-type", "f", "-name", term])
 
         if c == 0 and sd:
-            pt.success(f"Found {len(sd.splitlines())} ocurrences with term '{term}' in '{self.device}':")
+            pt.success(f"Found {len(sd.splitlines())} ocurrences with term '{term}' in '{self.device}':"+"\n")
             for line in sd.splitlines():
-                print(line)
+                print(line+"\n")
             return
         else:
             pt.fail(f"0 Ocurrences with term '{term}' on '{self.device}'.");return
@@ -163,7 +280,7 @@ class AdbSession:
         if PKG_RE.match(pkg):
             c, st, sd = self._run(["shell", "pm", "path", pkg])
             if c == 0:
-                pt.success(f"Package '{pkg}' apk: {sd.split(':')[-1]}\r");return
+                pt.success(f"Package '{pkg}' apk: {sd.split(':')[-1]}");return
                 
         pt.fail(f"Failed to get package '{pkg}' apk.")  
             
@@ -173,11 +290,7 @@ class AdbSession:
         if not src.exists() or not src.is_file():
             pt.error(f"Local file not found: '{local}'")
             return
-
-        if not remote.startswith("/sdcard/"):
-            pt.error("Remote path must start with '/sdcard/'")
-            return
-
+            
         if mt.check_path_traversal(remote):
             pt.error("Path traversing detected, aborting...")
             return
@@ -191,10 +304,6 @@ class AdbSession:
 
     def dump(self, remote: str, local: str):
         dest = Path(local)
-
-        if not remote.startswith("/sdcard/"):
-            pt.fail("Remote path must start with '/sdcard/'")
-            return
 
         dest.mkdir(parents=True, exist_ok=True)
 
@@ -261,25 +370,62 @@ class AdbSession:
             except KeyboardInterrupt:
                 pt.proc("Spam stoped")
                 
-    def list_notifications(self):
-        c, st, sd = self._run(["shell","cmd","notification","list"])
+    def list_notifications(self, term=None):
         apps = {}
-        if c == 0 and sd:
-            for line in sd.splitlines():
-                c1, st1, sd1 = self._run(["shell","cmd","notification","get",line.replace("|","\\|")])
-                if c1 == 0 and sd1:
-                    for l in sd1.splitlines():
-                         if "opPkg=" in l:
-                            pt.success(f"APP: {l.split('=')[-1]}");break
-                    s = re.search(r"extras=\{(.*?)\}", sd1, re.DOTALL)
-                    if s:
-                        c = s.group(1)
-                        print(c.strip())
-
-                    print("")
-
+        if term == None:
+            c, st, sd = self._run(["shell","cmd","notification","list"])
+            if c == 0 and sd:
+                for line in sd.splitlines():
+                    c1, st1, sd1 = self._run(["shell","cmd","notification","get",line.replace("|","\\|")])
+                    if c1 == 0 and sd1:
+                        for l in sd1.splitlines():
+                             if "opPkg=" in l:
+                                pt.success(f"APP: {l.split('=')[-1]}");break
+                        s = re.search(r"extras=\{(.*?)\}", sd1, re.DOTALL)
+                        if s:
+                            c = s.group(1)
+                            print(c.strip())
+    
+                        print("")
+                        
             return
-
+                    
+        elif term != None and PKG_RE.fullmatch(term.strip()):
+            c, st, sd = self._run(["shell","cmd","notification","list"])
+            if c == 0 and sd:
+                oc = {}
+        
+                for line in sd.splitlines():
+                    if term in line:
+                        c1, st1, sd1 = self._run([
+                            "shell","cmd","notification","get",
+                            line.replace("|","\\|")
+                        ])
+        
+                        if c1 == 0 and sd1:
+                            app = None
+        
+                            for l in sd1.splitlines():
+                                if "opPkg=" in l:
+                                    app = l.split("=")[-1]
+        
+                            s = re.search(r"extras=\{(.*?)\}", sd1, re.DOTALL)
+                            if s and app:
+                                content = s.group(1).strip()
+        
+                                if app not in oc:
+                                    oc[app] = []
+        
+                                oc[app].append(content)
+        
+                for k, values in oc.items():
+                    pt.success(f"App: {k}"+"\n")
+                    for v in values:
+                        print(v+"\n")
+                        sleep(0.01)
+        
+                return bool(oc)
+            
         pt.fail(f"Failed to list notifications on device '{self.device}'.")
 
     def list_saved_networks(self):
@@ -321,7 +467,7 @@ class AdbSession:
                     if len(splited) == 2:
                         pt.success(f"Current package name: {splited[0]}")
                         pt.success(f"Current package main: {splited[1]}")
-            return
+                        return 
                   
         else:
             c1, st1, sd1 = self._run(["shell","dumpsys","window","windows"])
@@ -332,7 +478,7 @@ class AdbSession:
                         if len(splited) == 2:
                             pt.success(f"Current package name: {splited[0]}")
                             pt.success(f"Current package main: {splited[1]}")
-                return
+                            return 
             
         pt.fail(f"Failed to get current app in device '{self.device}'.")
 
@@ -483,9 +629,9 @@ class AdbSession:
         packages = [line.split(":")[-1].strip() for line in sd.splitlines()]
 
         if not term or not term.strip():
-            pt.success("Available packages:")
+            pt.success("Available packages:"+"\n")
             for pkg in packages:
-                print(pkg)
+                print(pkg+"\n")
             return
 
         found = []
@@ -497,9 +643,9 @@ class AdbSession:
                 found.append(pkg)
 
         if found:
-            pt.success("Packages found:")
+            pt.success("Packages found:"+"\n")
             for f in found:
-                print(f)
+                print(f+"\n")
             return
 
         pt.fail("No packages matched.")
@@ -509,9 +655,9 @@ class AdbSession:
         if not term:
             c, st, sd = self._run(["shell", "getprop"])
             if c == 0 and sd:
-                pt.success("")
+                pt.success("\n")
                 for line in sd.splitlines():
-                    print(line);sleep(0.01)
+                    print(line+"\n");sleep(0.01)
                 return
 
         if mt.dangerous_strings(term):
@@ -636,7 +782,6 @@ class AdbSession:
                     pt.success("Screnshot taken.")
                     self.dump(remote, dest)
 
-                sleep(max(0.2, delay))
             except KeyboardInterrupt:
                 pt.proc("Live interrupted");break
 
@@ -661,7 +806,27 @@ class AdbSession:
         else:
             subprocess.run(["xdg-open", str(html)])
             self.screenshot(0.2, png_path)
-
+            
+    def cli_notification_spy(self, target: str):
+        try:
+            if PKG_RE.match(target.strip()):
+                i = 0
+                while True:
+                    if i < 1:
+                        self.current_app()
+                        v2 = self.list_notifications(target)
+                        if v2:
+                            break
+                        i += 1
+                        sleep(1)
+                        
+                    else:
+                        mt.clear(); i = 0
+            else:
+                pt.error("Invalid PKG.")
+        except KeyboardInterrupt:
+            pt.proc("User stoped.")
+            
     def dump_sd(self, extensions: tuple[str], workers=2):
         c, st, sd = self._run(["shell", "find", "/sdcard/", "-type", "f"])
         if c != 0:
@@ -698,7 +863,7 @@ class AdbSession:
             with ThreadPoolExecutor(max_workers=workers) as exe:
                 list(exe.map(worker, files))
 
-            pt.success(f"Dumped {len(files)} files to 'adb_dumps/{self.device}'.")
+            pt.success(f"Dumped {len(files)} files -> 'adb_dumps/{self.device}'.")
 
         else:
 
@@ -728,12 +893,22 @@ class AdbSession:
             
                 for f in files:
                     self.dump(f, str(base))
-
-            except KeyboardInterrupt:
-                pt.success(f"Dumped {len(files)} files from '{self.device}' to '{base}'.");return
+                    
+                wpp_files = [str(p) for p in Path(base).glob("*")]
                 
-            pt.success(f"Dumped {len(files)} files from '{self.device}' to '{base}'.")
+                def wpp_worker(f):
+                    ext = Path(f).suffix
+                    dest = f"adb_dumps/{self.device}/WhatsApp/{mt.get_file_type(ext)}"
+                    Path(dest).mkdir(parents=True, exist_ok=True)
+                    shutil.move(f, dest)
+
+                with ThreadPoolExecutor(max_workers=4) as exe:
+                    list(tpe.map(wpp_worker, wpp_files))
+                    
+            except KeyboardInterrupt:
+                pt.success(f"Dumped {len(files)} files from '{self.device}' -> '{base}'.");return
+                
+            pt.success(f"Dumped {len(files)} files from '{self.device}' -> '{base}'.")
             
         else:
             pt.fail("Dump whatsapp data aborted.")
-

@@ -11,13 +11,12 @@ from datetime import datetime
 from os import system, remove, getenv
 from collections import Counter
 
-
 class Maintenance:
-    
+
     @staticmethod
     def check_text(text):
         return isinstance(text, str) and len(text) > 0
-    
+
     @staticmethod
     def check_regex(pattern, text):
         return re.search(pattern, text) is not None
@@ -30,11 +29,11 @@ class Maintenance:
     def read_c(path):
         p = Path(path)
         try:
-            if p.exists() and p.is_file(): 
+            if p.exists() and p.is_file():
                 return 0, p.read_text()
         except Exception as e:
             return 1, str(e)
-            
+
     @staticmethod
     def path_runner(path):
         paths = []
@@ -46,7 +45,7 @@ class Maintenance:
             return paths
         except Exception as e:
             return None
-            
+
     @staticmethod
     def file_hash(path):
         h = hashlib.md5()
@@ -54,7 +53,7 @@ class Maintenance:
             for chunk in iter(lambda: f.read(4096), b""):
                 h.update(chunk)
         return h.hexdigest()
-        
+
     @staticmethod
     def get_file_type(ft):
         file_type = ft.lower().lstrip(".")
@@ -77,7 +76,7 @@ class Maintenance:
                     if item in value:
                         it[item] = ty
             return it
-            
+
         else:
             for ty, exts in type_dict.items():
                 if file_type in exts:
@@ -113,7 +112,7 @@ class Maintenance:
                     cmd = shlex.split(command)
                 else:
                     cmd = command
-    
+
             sub = run(
                 cmd,
                 shell=shell,
@@ -123,19 +122,19 @@ class Maintenance:
                 errors="replace",
                 timeout=timeout
             )
-    
+
             return sub.returncode, sub.stderr, sub.stdout
-    
+
         except Exception as e:
             return 1, str(e), ""
-            
+
     @staticmethod
     def check_rm_sh():
         c, st, sd = Maintenance.exec_cmd(
             ["adb", "shell", "ls", "/sdcard/rm.sh"]
         )
         return c == 0
-        
+
     @staticmethod
     def check_if_linux():
         return platform.system() == "Linux"
@@ -157,7 +156,7 @@ class Maintenance:
         code, _, stdout = Maintenance.exec_cmd("adb devices")
         if code != 0:
             return None
-        
+
         devices = []
 
         lines = stdout.splitlines()
@@ -217,17 +216,17 @@ class Maintenance:
             data_splited = data.splitlines()
             text = "adbpayload-description="
             re_1 = re.findall(text, data)
-            
+
             if len(re_1) != 1:
                 return False, ""
-                
+
             if len(data_splited) < 4:
                 return False, ""
-                
+
             for l in data_splited:
                 if re.match(r"\d{1}", l) or re.match(r"[a-zA-Z]", l):
                     count = 1;break
-                    
+
             if count == 0:
                 return False, ""
 
@@ -247,55 +246,55 @@ class Maintenance:
         status = Maintenance.check_default_adbp(custom_path)[0]
         input_events = []
         skip_flags = ("## File created by adb_ripper", "adbpayload-description=")
-        
+
         if status:
             data = custom_path.read_text()
             input_events = [line for line in data.splitlines() if not line.startswith(skip_flags)]
 
         return status, input_events
-    
+
     @staticmethod
     def list_adbp():
         files = {}
         path = Path("adb_payloads")
-        
+
         for p in path.glob("*.adbp"):
             desc = Maintenance.check_default_adbp(p)
             if desc[0]:
                 files[p.name] = [p, desc[1].strip()]
-                
+
         return files
-        
+
     @staticmethod
     def simple_list_adbp():
         files = []
         path = Path("adb_payloads")
-        
+
         for p in path.glob("*.adbp"):
             desc = Maintenance.check_default_adbp(p)
             if desc:
                 files.append(p.name)
-                
+
         return files
-    
+
     @staticmethod
     def payload_formatter(dictio: dict):
         init_list = []
-        
+
         for key, value in dictio.items():
             init_list.append([key, value[1]])
 
         return init_list
-        
+
     @staticmethod
     def sessions_formatter(dictio: dict):
         init_list = []
-        
+
         for key, value in dictio.items():
             init_list.append([key] + [v for v in value.split()])
 
         return init_list
-        
+
     @staticmethod
     def _generator(quantity: int):
         if quantity > 1:
@@ -304,12 +303,12 @@ class Maintenance:
         elif quantity == 1:
             l = [str(random.randint(0,286)) for i in range(1)]
             return l
-        
+
     @staticmethod
     def _input_format(input_list: list[int]):
         l = [str(i) for i in range(input_list)]
         return " ".join(l)
-        
+
     @staticmethod
     def make_html(device, path, dest: Path):
         base_html = '''<!DOCTYPE html>
@@ -335,62 +334,73 @@ class Maintenance:
         elif dest.exists() and dest.is_file():
             remove(dest)
             dest.write_text(base_html)
-    
+
     @staticmethod
     def detect_termux():
         e = getenv("PREFIX")
         if e != None:
             if'com.termux' in e:
                 return True
-        
+
         return False
-    
+
     @staticmethod
     def open_file(file_name):
         mt = Maintenance
         if mt.detect_termux():
             mt.exec_cmd(["termux-open-url", file_name])
-        
+
         mt.exec_cmd(["xdg-open", file_name])
-        
+
     @staticmethod
     def check_path_traversal(path: str):
         black_list = ["../", "..//", "\\..", "\\..", "/..", "//.."]
         for i in black_list:
             if i in path:
                 return True;break
-                
+
     @staticmethod
     def dangerous_strings(text: str):
         black_list = ["&&", ";", "||", "|"]
         for i in black_list:
             if i in text:
                 return True;break
-                
+
     @staticmethod
     def get_random_string(length=None):
         d = string.digits
         l = string.ascii_lowercase
         u = string.ascii_uppercase
-        
+
         full = "".join([d,l,u])
-        
+
         final_string = ""
-        
+
         if not length:
             length = random.randint(4,16)
-            
+
         for i in range(length):
             final_string += random.choice(full)
-            
+
         return final_string
-        
+
     @staticmethod
     def get_random_brightness_value():
         return random.uniform(0,0.7)
-        
+
     @staticmethod
     def get_random_battery_value():
         return random.randint(0,100000000)
         
-            
+    @staticmethod
+    def module_formater(dictio: dict):
+        init_list = []
+
+        for key, value in dictio.items():
+            init_list.append([key, value[0], value[1]])
+
+        return init_list
+        
+    @staticmethod
+    def current_dir():
+        return str(Path.cwd())
