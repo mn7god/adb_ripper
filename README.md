@@ -1,26 +1,3 @@
-## Introduction
-
-adb_ripper is an simple project designed to fully leverage many of ADB’s features for various purposes. Among its key functionalities are bulk file dumps by extension, executing input events with customizable payloads, listing and managing multiple connected devices, and most recently a new feature currently in testing that aims to provide a sort of improvised “screen sharing” capability for the target device. It does not use many external libraries but relies on Python being installed on the machine, the installation of dependencies listed in the ‘requirements.txt’ file using pip, and the Android Debug Tools (adb) being installed on the machine.
-
-## Setup
-
-```bash
-sudo apt -y install python3-venv;python3 -m venv venv;git clone https://github.com/mn7god/adb_ripper;cd adb_ripper; python3 -m venv venv;source venv/bin/activate; pip install -r requirements.txt
-```
-
-## Starting
-
-```bash
-python3 adb_ripper.py
-```
-
-## OBS:
-
-Some commands may not work on very old versions of Android;
-these include: list_notifications, send_msg, and send_msg_spam.
-
-This script has been tested on Android versions 9, 13, and 16.
-
 ## DISCLAIMER:
 
 This project heavily relies on ADB (Android Debug Bridge), a command-line tool distributed as part of the Android SDK by Google LLC.
@@ -36,3 +13,34 @@ You understand the risks of interacting with Android devices at a system level.
 The author are not liable for any damage, data loss, security issues, account bans, warranty voiding, or other consequences resulting from the use or misuse of this software.
 
 Use at your own risk.
+
+## Introduction
+
+ADB Ripper is a simple project focused almost 100% on getting the most out of the Android Debug Bridge. It’s written entirely in Python with very few external libraries and features a basic, slightly interactive CLI interface that makes it easy to use. It’s not a flawlessly organized project, but I guarantee it will be very useful for your purposes.
+
+This project is also built exclusively for Linux; if you use Windows, you can use WSL (preferably Ubuntu or Debian).
+
+## Lazy Setup
+
+```bash
+sudo apt -y install python3-venv;python3 -m venv venv;git clone https://github.com/mn7god/adb_ripper;cd adb_ripper; python3 -m venv venv;source venv/bin/activate; pip install -r requirements.txt
+```
+
+## Starting
+
+```bash
+python3 adb_ripper.py
+```
+
+## ADB Functions List:
+
+#♦
+
+
+
+## PS:
+
+Some commands may not work on very old versions of Android;
+these include: list_notifications, send_msg, and send_msg_spam.
+
+This script has been tested on Android versions 9, 13, and 16.
