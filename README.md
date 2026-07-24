@@ -51,7 +51,7 @@ python3 adb_ripper.py
 
 ➤ open_url - Opens any url in device browser
 
-➤ ripper - Command focused on custom macros and payloads managing
+➤ ripper - Command focused on custom macros and payloads managing(tutorial in /docs directory)
 
 ➤ send_msg - Sends any notification with you custom text
 
