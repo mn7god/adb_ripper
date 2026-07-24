@@ -10,7 +10,7 @@ you can create your own macros to perform actions such as key events, press even
 
 To create macros for adb_ripper, you must follow these requirements:
 1. Add 'adbpayload_description= (YOUR DESCRIPTION HERE)' at the beginning of the file
-2. List the types of data you want to execute (key event, press event, roll event, text event), separated by line breaks
+2. Write the type of data you want to execute (key event, press event, roll event, text event), separated by line breaks
 3. Save the file in the adb_payloads folder, and you’re done!
 
 Running macros is simple; the ‘ripper -h’ command itself explains how (this also applies to payloads or modules, if you prefer to call them that).
