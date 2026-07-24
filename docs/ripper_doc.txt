@@ -5,10 +5,11 @@ If you use the ‘ripper -h’ command, you'll see that there are two types of r
 1 - Macros
 2 - Modules
 
-Macros—or, in this case, ‘.adbp’ files—are a type of script designed to perform automated actions. Whether in the terminal or outside of it, you can create your own macros to perform actions such as key events, press events, and text events.
+Macros, or, in this case, ‘.adbp’ files are a type of script designed to perform automated actions. Whether in the terminal or outside of it,
+you can create your own macros to perform actions such as key events, press events, and text events.
 
 To create macros for adb_ripper, you must follow these requirements:
-1. Add `adbpayload_description= (YOUR DESCRIPTION HERE)` at the beginning of the file
+1. Add 'adbpayload_description= (YOUR DESCRIPTION HERE)' at the beginning of the file
 2. List the types of data you want to execute (key event, press event, roll event, text event), separated by line breaks
 3. Save the file in the adb_payloads folder, and you’re done!
 
