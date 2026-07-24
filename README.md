@@ -37,37 +37,64 @@ python3 adb_ripper.py
 ➤ sessions - Basic adb sessions manager
 
 ➤ dump - Extracts any file from device storage 
+
 ➤ dump_permissions - Extracts all permissions from an app
+
 ➤ dump_sd - Extracts multiple files from device storage with extension filter
+
 ➤ dump_wpp - Extracts every type of media in whatsapp data path
 
+
 ➤ cmd - Executes any toybox cmd command
+
 ➤ force_stop - Stops any app process
+
 ➤ open_url - Opens any url in device browser
+
 ➤ ripper - Command focused on custom macros and payloads managing
+
 ➤ send_msg - Sends any notification with you custom text
 
 ➤ send_key - Sends one key event to device
+
 ➤ send_keys - Sends multiple sequential key events to device
+
 ➤ send_text - Sends any text to device
 
 ➤ battery - Command from adb to manage battery settings and stats
+
 ➤ display - Command from adb to manage display settings and stats
+
 ➤ clear_pkg - Clears internal data from any app on device
+
 ➤ get_host_cwd - Get current working directory from host(can be useful without cmd2 shell option)
+
 ➤ get_prop - Get propierties from device with string filter
+
 ➤ install - Install any android package(apk) you want on device
+
 ➤ uninstall - Uninstall any app you want on device
+
 ➤ list_pkgs - Lists all apps on device with string filters
+
 ➤ list_processes - Lists all processes on device with string filters
+
 ➤ live - Try improve a low complexity sharescreen with screenshots and html
+
 ➤ notifspy - Monitorates notification bar until the custom package appears in device and show current app on screen
+
 ➤ package_apk - Gets any app apk path of the device
+
 ➤ raw_shell - Opens a simple shell on device
+
 ➤ screencap - Takes an screenshot from device
+
 ➤ screenrecord - Starts an screenrecord of device
+
 ➤ search - Search any file or file type on the device
+
 ➤ send - Sends any file to device
+
 ➤ start_app - Starts any app by package name in device
 
 # PS:
