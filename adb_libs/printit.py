@@ -63,7 +63,3 @@ class PrintIt:
 
     def incorrect_usage(cmd):
         print(f"[{Color.RED}ERROR{Color.RESET}]: Incorrect usage of '{cmd}', use 'help {cmd}'")
-        
-        
-        
-        
