@@ -101,7 +101,7 @@ class Maintenance:
             return None, str(e)
 
     @staticmethod
-    def exec_cmd(command, shell=False, timeout=60):
+    def exec_cmd(command, shell=False, timeout=240):
         try:
             if shell:
                 if not isinstance(command, str):
