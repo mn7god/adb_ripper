@@ -2,6 +2,8 @@ import cmd2
 from .maintenance_utils import Maintenance as mt
 from pathlib import Path
 
+main_dir = str(Path.home())
+
 class Parsers:
 	
 	modules_list = sorted([
@@ -86,12 +88,12 @@ class Parsers:
 	list_processes_parser.add_argument('term', nargs="?", metavar=("TERM"), help="Accepts a optional term to filter.")
 	
 	send_parser = cmd2.Cmd2ArgumentParser(description="Sends a file from local path to the device.")
-	send_parser.add_argument('local_path', metavar=('LOCAL_PATH'), type=str, help="Local file path to send.")
+	send_parser.add_argument('local_path', metavar=('LOCAL_PATH'), nargs='?', default=main_dir, help="Local file path to send.")
 	send_parser.add_argument('remote_path', metavar=('REMOTE_PATH'), type=str, help="Remote path to send.")
 	
 	dump_parser = cmd2.Cmd2ArgumentParser(description="Dumps a file from remote path to a local path.")
 	dump_parser.add_argument('remote_path', metavar=('REMOTE_PATH'),  type=str, help="Remote file to dump.")
-	dump_parser.add_argument('local_path', metavar=('LOCAL_PATH'), type=str, help="Local path to receive file.")
+	dump_parser.add_argument('local_path', metavar=('LOCAL_PATH'), nargs='?', default=main_dir, help="Local path to receive file.")
 	
 	dump_sd_parser = cmd2.Cmd2ArgumentParser(description="Dumps a massive files from device internal storage.")
 	dump_sd_group = dump_sd_parser.add_mutually_exclusive_group()
