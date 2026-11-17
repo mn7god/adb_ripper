@@ -11,7 +11,7 @@ from .printit import PrintIt as pt
 from .maintenance_utils import Maintenance as mt
 from concurrent.futures import ThreadPoolExecutor
 
-PKG_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$")
+PKG_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+)+$")
 SWIPE_RE = re.compile(r"(?:0|[1-9]\d{0,3}) (?:0|[1-9]\d{0,3}) (?:0|[1-9]\d{0,3}) (?:0|[1-9]\d{0,3})")
 TAP_RE = re.compile(r"(?:0|[1-9]\d{0,3}) (?:0|[1-9]\d{0,3})")
 URL_RE = re.compile(r'^(https?://)?([a-zA-Z0-9.-]+|\d{1,3}(\.\d{1,3}){3})(:\d+)?(/[^\s]*)?$')
@@ -70,7 +70,7 @@ class AdbSession:
             for pkg in sd.splitlines():
                 splited_line = pkg.split(":")[-1]
                 c1, st1, sd1 = self._run(["shell", "pm", "path", splited_line])
-                if c1 == 0 and sd1:
+                if c1 == 0 and sd1.endswith("base.apk"):
                     apks.append([splited_line, sd1.split(":")[-1]])
             
             if apks != []:
@@ -279,8 +279,10 @@ class AdbSession:
     def package_apk(self, pkg: str):
         if PKG_RE.match(pkg):
             c, st, sd = self._run(["shell", "pm", "path", pkg])
-            if c == 0:
-                pt.success(f"Package '{pkg}' apk: {sd.split(':')[-1]}");return
+            if c == 0 and sd:
+                for line in sd.splitlines():
+                    if line.endswith("base.apk"):
+                        pt.success(f"Package '{pkg}' apk: {line.split(':')[-1]}");return
                 
         pt.fail(f"Failed to get package '{pkg}' apk.")  
             
@@ -294,7 +296,9 @@ class AdbSession:
         if mt.check_path_traversal(remote):
             pt.error("Path traversing detected, aborting...")
             return
-
+            
+        pt.proc(f"Sending to remote path: {remote}")
+            
         c, st, sd = self._run(["push", str(src), remote])
 
         if c == 0:
@@ -306,7 +310,9 @@ class AdbSession:
         dest = Path(local)
 
         dest.mkdir(parents=True, exist_ok=True)
-
+        
+        pt.proc(f"Attempting to dump: {remote}")
+        
         c, st, sd = self._run(["pull", remote, str(dest)])
 
         if c == 0:
